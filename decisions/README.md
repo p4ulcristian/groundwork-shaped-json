@@ -18,3 +18,4 @@ The first six were made while wire was a library inside Groundwork, a Clojure fr
 - [The kept tools are forgotten past a thousand shapes](2026-10-22-the-kept-tools-are-forgotten-past-a-thousand.md)
 - [Data that fits goes out without being read back](2026-10-22-data-that-fits-goes-out-without-being-read-back.md)
 - [Each way is one walk, and malli says why](2026-10-22-each-way-is-one-walk.md)
+- [Every value that sets behaviour is a setting; no hidden defaults](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md)

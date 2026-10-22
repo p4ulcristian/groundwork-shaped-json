@@ -1,5 +1,7 @@
 # wire is for the app's edges, in five functions
 
+> Changed in part by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md) (2026-10-22, v0.2.0): every function takes a wire, made from settings, first.
+
 > Changed in part by [Data that fits goes out without being read back](2026-10-22-data-that-fits-goes-out-without-being-read-back.md) (2026-10-22): only data that doesn't fit is read back.
 
 > Changed in part by [The way in names every key too](2026-10-22-the-way-in-names-every-key-too.md) (2026-10-22): the way in is checked against the closed shape too.

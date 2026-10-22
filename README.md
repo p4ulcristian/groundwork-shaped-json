@@ -8,40 +8,51 @@ for JavaScript travel as text and come back as their real types. Both sides
 read the same JSON and refuse the same.
 
 ```clojure
-io.github.p4ulcristian/wire {:git/tag "v0.1.4" :git/sha "…"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.1.4
+io.github.p4ulcristian/wire {:git/tag "v0.2.0" :git/sha "…"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.2.0
 ```
 
 Needs only malli and jsonista. One namespace for both languages:
 `wire.api` is a `.cljc`; `wire.json`, `wire.time` and `wire.types` are a
 `.clj` and a `.cljs` each, and each language loads its own.
 
-## The api: five functions
+## The api: a wire, and five functions
+
+An app makes a wire once from its settings, every value written out (see
+[the settings](decisions/2026-10-22-every-value-that-sets-behaviour-is-a-setting.md)),
+and every function takes it first.
 
 | function | does |
 |---|---|
+| `make-wire-from-settings` | settings → a wire; settings that don't fit `settings-shape` throw `:wire/bad-settings` |
 | `turn-json-text-into-data` | JSON text → JSON data; `"post/title"` becomes `:post/title` |
 | `turn-data-into-json-text` | JSON data → JSON text; keys keep their namespace |
 | `turn-json-data-into-shaped-data-or-errors` | the way in: `{:shaped-data …}` or `{:errors …}`, checked with every map closed: a key the shape doesn't name never comes in |
-| `turn-shaped-data-into-json-data-or-errors` | the way out: `{:json-data …}` or `{:errors …}`, read back as the other side will and checked with every map closed: a key the shape doesn't name never leaves |
+| `turn-shaped-data-into-json-data-or-errors` | the way out: `{:json-data …}` or `{:errors …}`, checked with every map closed: a key the shape doesn't name never leaves |
 | `find-errors-in-data-for-shape` | why data doesn't fit a shape; nil when it fits |
 
 ```clojure
 (require '[wire.api :as wire])
 
+(def wire (wire/make-wire-from-settings
+           {:most-shapes-kept 1000
+            :json-limits      {:max-nesting-depth 1000 :max-number-length 1000 :max-string-length 20000000
+                               :max-name-length 50000 :max-document-length nil :max-token-count nil
+                               :max-writing-nesting-depth 1000}}))
+
 (def order [:map [:order/id :uuid] [:order/total :decimal] [:order/day :time/local-date]])
 
-(wire/turn-shaped-data-into-json-data-or-errors order {:order/id    #uuid "1d000000-0000-4000-8000-000000000001"
+(wire/turn-shaped-data-into-json-data-or-errors wire order {:order/id    #uuid "1d000000-0000-4000-8000-000000000001"
                                                       :order/total 120.50M
                                                       :order/day   (java.time.LocalDate/parse "2026-11-15")})
 ;=> {:json-data #:order{:id "1d000000-0000-4000-8000-000000000001" :total "120.50" :day "2026-11-15"}}
 
-(wire/turn-shaped-data-into-json-data-or-errors order {:order/id #uuid "1d000000-0000-4000-8000-000000000001"
+(wire/turn-shaped-data-into-json-data-or-errors wire order {:order/id #uuid "1d000000-0000-4000-8000-000000000001"
                                                       :order/total 120.50M
                                                       :order/day (java.time.LocalDate/parse "2026-11-15")
                                                       :user/password-hash "x"})
 ;=> {:errors {:user/password-hash ["disallowed key"]}}
 
-(wire/turn-json-data-into-shaped-data-or-errors order (wire/turn-json-text-into-data json-text))
+(wire/turn-json-data-into-shaped-data-or-errors wire order (wire/turn-json-text-into-data wire json-text))
 ;=> {:shaped-data #:order{:id #uuid "1d000000-…" :total 120.50M :day #object[java.time.LocalDate "2026-11-15"]}}
 ```
 
@@ -69,8 +80,8 @@ Needs only malli and jsonista. One namespace for both languages:
   have been rounded, so it doesn't fit `:int`
 - a moment is a `wire.time/Instant` and a calendar day a `wire.time/Day`,
   built on Closure's `goog.date`; both print as the ISO text they came as
-- a decimal is its text, or exact with big.js: require `wire.big` (and add
-  `big.js` to the app's package.json)
+- a decimal is its text (`:exact-decimals nil`), or exact with big.js
+  (`:exact-decimals wire.big/big`, and `big.js` in the app's package.json)
 
 ## Speed
 

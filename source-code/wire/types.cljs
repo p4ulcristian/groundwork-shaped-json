@@ -1,59 +1,36 @@
 (ns wire.types
   "Decimals, whole numbers and ids in the browser. A decimal is its text,
-   \"12.30\", or an exact value once use-exact-decimals! is given one
-   (wire.big gives big.js). A whole number is a number within JavaScript's
-   safe range and its text beyond it. An id is its text."
+   \"12.30\", or an exact value when the settings give an exact type
+   (wire.big's big.js). A whole number is a number within JavaScript's safe
+   range and its text beyond it. An id is its text."
   (:require
    [malli.core :as m]
    [malli.transform :as mt]))
 
-(defonce ^:private exact
-  ;; the exact decimal type, once one is given: {:decimal? :read :text}
-  ;; (wire.big); nil keeps a decimal as its text
-  (volatile! nil))
-
-(defn use-exact-decimals!
-  "How the browser holds a :decimal: {:decimal? pred, :read text → value,
-   :text value → text}, or nil for its text. wire.big
-   calls it with big.js when it loads."
-  [kind]
-  (vreset! exact kind))
-
 (def ^:private decimal-text-pattern #"^-?\d+(\.\d+)?$")
 
-(defn decimal-value?
-  "Whether x is a decimal as the browser holds it."
-  [x]
-  (if-let [{:keys [decimal?]} @exact]
-    (decimal? x)
-    (and (string? x) (some? (re-matches decimal-text-pattern x)))))
+(defn- decimal-text? [x]
+  (and (string? x) (some? (re-matches decimal-text-pattern x))))
 
-(defn decimal
-  "An exact decimal from its text, \"12.30\". With an exact value given (big.js)
-   it stays exact, but trailing zeros aren't kept: it reads 12.3; without one,
-   it is the text."
-  [s]
-  (if-let [{:keys [read]} @exact] (read s) s))
+(defn make-decimal-schema
+  "The browser's :decimal, by the settings' :exact-decimals: its text, or,
+   given an exact type ({:decimal? :read :text}, wire.big's big.js), that
+   type's value."
+  [{:keys [exact-decimals]}]
+  (let [{:keys [decimal? read]} exact-decimals]
+    (m/-simple-schema {:type            :decimal
+                       :pred            (if exact-decimals decimal? decimal-text?)
+                       :type-properties {:gen/schema :int
+                                         :gen/fmap   (if exact-decimals #(read (str %)) str)}})))
 
-(defn decimal-text
-  "An exact decimal as text."
-  [d]
-  (if-let [{:keys [decimal? text]} @exact] (if (decimal? d) (text d) (str d)) (str d)))
-
-(defn decimal-from-wire [x]
-  (let [{:keys [read]} @exact]
-    (if (and read (string? x) (re-matches decimal-text-pattern x))
-      (read x)
-      x)))
-
-(defn decimal-to-wire [x]
-  (let [{:keys [decimal? text]} @exact]
-    (if (and decimal? (decimal? x)) (text x) x)))
-
-(defn example-decimal
-  "A whole number as a decimal, for generated values (tests)."
-  [n]
-  (if-let [{:keys [read]} @exact] (read (str n)) (str n)))
+(defn make-decimal-transformer
+  "Decimal text read into the exact type and written from it; with no exact
+   type, a decimal stays its text both ways."
+  [{:keys [exact-decimals]}]
+  (let [{:keys [decimal? read text]} exact-decimals]
+    (mt/transformer {:name     :decimal
+                     :decoders {:decimal (if exact-decimals #(if (decimal-text? %) (read %) %) identity)}
+                     :encoders {:decimal (if exact-decimals #(if (decimal? %) (text %) %) identity)}})))
 
 (defn int-from-wire
   "Whole numbers stay as they came: one beyond JavaScript's safe range is

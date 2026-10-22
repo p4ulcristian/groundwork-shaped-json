@@ -5,28 +5,14 @@
    UUID. The JVM reads the same JSON the browser reads, and refuses the
    same."
   (:require
-   [malli.core :as m]))
+   [malli.core :as m]
+   [malli.transform :as mt]))
 
 (set! *warn-on-reflection* true)
 
 (def ^:private decimal-text-pattern #"^-?\d+(\.\d+)?$")
 
-(defn decimal-value?
-  "Whether x is a decimal as the JVM holds it."
-  [x]
-  (decimal? x))
-
-(defn decimal
-  "An exact decimal from its text, \"12.30\"."
-  [s]
-  (BigDecimal. ^String s))
-
-(defn decimal-text
-  "An exact decimal as text."
-  [d]
-  (.toPlainString ^BigDecimal d))
-
-(defn decimal-from-wire
+(defn- decimal-from-wire
   "Plain decimal text, \"12.30\", becomes a BigDecimal; anything else, an
    exponent's \"1E+3\" too, stays as it came and fails :decimal."
   [x]
@@ -34,13 +20,23 @@
     (BigDecimal. ^String x)
     x))
 
-(defn decimal-to-wire [x]
+(defn- decimal-to-wire [x]
   (if (decimal? x) (.toPlainString ^BigDecimal x) x))
 
-(defn example-decimal
-  "A whole number as a decimal, for generated values (tests)."
-  [n]
-  (BigDecimal. (str n ".00")))
+(defn make-decimal-schema
+  "The JVM's :decimal: a BigDecimal. The settings have nothing for it."
+  [_settings]
+  (m/-simple-schema {:type            :decimal
+                     :pred            decimal?
+                     :type-properties {:gen/schema :int
+                                       :gen/fmap   #(BigDecimal. (str % ".00"))}}))
+
+(defn make-decimal-transformer
+  "A BigDecimal travels as its plain text, \"12.30\", and comes back."
+  [_settings]
+  (mt/transformer {:name     :decimal
+                   :decoders {:decimal decimal-from-wire}
+                   :encoders {:decimal decimal-to-wire}}))
 
 (def ^:private max-safe-integer
   ;; JavaScript's Number.MAX_SAFE_INTEGER: the largest whole number a

@@ -1,5 +1,7 @@
 # The kept tools are forgotten past a thousand shapes
 
+> Changed in part by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md) (2026-10-22, v0.2.0): how many are kept is the setting :most-shapes-kept.
+
 > Changes in part [A shape's tools are made once](2026-10-22-a-shapes-tools-are-made-once.md): the kept tools no longer grow without end.
 
 **Decision:** wire keeps at most 1000 shapes' tools. When a new shape would be the 1001st, all kept tools are forgotten and each is made again the next time it is used.

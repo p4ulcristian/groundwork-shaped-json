@@ -7,13 +7,14 @@
    [malli.core :as m]
    [malli.generator :as mg]
    [wire.api :as wire]
+   [wire.test-wires :refer [test-wire]]
    [wire.time :as time]))
 
 (def id #uuid "7f3c1e2a-0000-4000-8000-000000000001")
 
-(defn- way-out [shape shaped-data] (wire/turn-shaped-data-into-json-data-or-errors shape shaped-data))
-(defn- way-in [shape json-data] (wire/turn-json-data-into-shaped-data-or-errors shape json-data))
-(defn- way-in-from-text [shape text] (way-in shape (wire/turn-json-text-into-data text)))
+(defn- way-out [shape shaped-data] (wire/turn-shaped-data-into-json-data-or-errors test-wire shape shaped-data))
+(defn- way-in [shape json-data] (wire/turn-json-data-into-shaped-data-or-errors test-wire shape json-data))
+(defn- way-in-from-text [shape text] (way-in shape (wire/turn-json-text-into-data test-wire text)))
 
 (deftest maps-a-registry-keeps-are-closed-too
   (let [rows [:schema {:registry {::row [:map [:shop/name :string]]}} [:vector ::row]]]
@@ -91,14 +92,14 @@
     (is (contains? (way-in-from-text shape "{\"9223372036854775808\":\"a\"}") :errors))))
 
 (deftest json-text-the-same-on-both-sides
-  (is (= "{\"7f3c1e2a-0000-4000-8000-000000000001\":1}" (wire/turn-data-into-json-text {id 1}))
+  (is (= "{\"7f3c1e2a-0000-4000-8000-000000000001\":1}" (wire/turn-data-into-json-text test-wire {id 1}))
       "a UUID key is its text")
-  (is (= ["a" "b/c"] ((juxt namespace name) (key (first (wire/turn-json-text-into-data "{\"a/b/c\":1}")))))
+  (is (= ["a" "b/c"] ((juxt namespace name) (key (first (wire/turn-json-text-into-data test-wire "{\"a/b/c\":1}")))))
       "the namespace ends at the first slash")
   (is (= {:order/lines [1 2] :order/tags ["a"] :order/kind "order/rush" :order/note nil}
-         (wire/turn-json-text-into-data (wire/turn-data-into-json-text {:order/lines '(1 2) :order/tags #{"a"} :order/kind :order/rush :order/note nil}))))
+         (wire/turn-json-text-into-data test-wire (wire/turn-data-into-json-text test-wire {:order/lines '(1 2) :order/tags #{"a"} :order/kind :order/rush :order/note nil}))))
   (doseq [text ["{\"a\":1}{\"a\":2}" "[1,2] garbage"]]
-    (is (thrown? #?(:clj Exception :cljs js/Error) (wire/turn-json-text-into-data text)) "text after the JSON is refused")))
+    (is (thrown? #?(:clj Exception :cljs js/Error) (wire/turn-json-text-into-data test-wire text)) "text after the JSON is refused")))
 
 (def ^:private generated-shapes
   [[:map [:order/id :uuid] [:order/total :decimal] [:order/day :time/local-date] [:order/at :time/instant]
@@ -117,13 +118,13 @@
   ;; the way out sends data that fits without reading it back: generated
   ;; data of every kind must read back fitting, and write the same text again
   (doseq [shape generated-shapes
-          :let  [{:keys [encode decode fits-closed?]} (#'wire.api/find-tools-for-shape shape)]
-          value (mg/sample (m/schema shape {:registry @#'wire.api/registry}) {:size #?(:clj 200 :cljs 50) :seed 42})]
+          :let  [{:keys [encode decode fits-closed?]} (#'wire.api/find-tools-for-shape test-wire shape)]
+          value (mg/sample (m/schema shape {:registry (:registry test-wire)}) {:size #?(:clj 200 :cljs 50) :seed 42})]
     (is (fits-closed? value) (pr-str shape))
     (let [json-data (encode value)
-          back      (decode (wire/turn-json-text-into-data (wire/turn-data-into-json-text json-data)))]
+          back      (decode (wire/turn-json-text-into-data test-wire (wire/turn-data-into-json-text test-wire json-data)))]
       (is (fits-closed? back) (pr-str value))
-      (is (= (wire/turn-data-into-json-text json-data) (wire/turn-data-into-json-text (encode back))) (pr-str value)))))
+      (is (= (wire/turn-data-into-json-text test-wire json-data) (wire/turn-data-into-json-text test-wire (encode back))) (pr-str value)))))
 
 (defn- malli-way-in
   "The way in by malli alone, as before the walk."
@@ -155,14 +156,23 @@
 
 (deftest the-one-walk-answers-as-malli-does
   (doseq [shape generated-shapes
-          :let  [tools (#'wire.api/find-tools-for-shape shape)]
-          value (mg/sample (m/schema shape {:registry @#'wire.api/registry}) {:size #?(:clj 100 :cljs 30) :seed 7})
+          :let  [tools (#'wire.api/find-tools-for-shape test-wire shape)]
+          value (mg/sample (m/schema shape {:registry (:registry test-wire)}) {:size #?(:clj 100 :cljs 30) :seed 7})
           data  (cons value (break value))]
     (is (= (malli-way-out tools data) (way-out shape data)) (pr-str [:out shape data]))
     (let [json-data ((:encode tools) data)
           ;; shaped data compared by the text it writes: big.js values are
           ;; = only to themselves
           comparable (fn [{:keys [shaped-data errors]}]
-                       (if errors errors (wire/turn-data-into-json-text ((:encode tools) shaped-data))))]
+                       (if errors errors (wire/turn-data-into-json-text test-wire ((:encode tools) shaped-data))))]
       (doseq [json (cons json-data (break json-data))]
         (is (= (comparable (malli-way-in tools json)) (comparable (way-in shape json))) (pr-str [:in shape json]))))))
+
+(deftest settings-are-written-out
+  (is (= :wire/bad-settings
+         (:type (ex-data (try (wire/make-wire-from-settings {:most-shapes-kept 1000})
+                              (catch #?(:clj Exception :cljs :default) e e)))))
+      "a setting left out is refused")
+  (let [errors (:errors (ex-data (try (wire/make-wire-from-settings (assoc wire.test-wires/settings :most-shapes-kept 0 :cache-everything true))
+                                      (catch #?(:clj Exception :cljs :default) e e))))]
+    (is (= #{:most-shapes-kept :cache-everything} (set (keys errors))) "every problem, by key")))

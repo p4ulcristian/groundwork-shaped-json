@@ -6,7 +6,9 @@
    [wire.api]))
 
 (deftest the-api-names
-  (is (= '#{turn-json-data-into-shaped-data-or-errors
+  (is (= '#{settings-shape
+           make-wire-from-settings
+           turn-json-data-into-shaped-data-or-errors
            turn-shaped-data-into-json-data-or-errors
            find-errors-in-data-for-shape
            turn-data-into-json-text

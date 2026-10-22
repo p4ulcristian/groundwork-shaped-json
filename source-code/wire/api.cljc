@@ -14,9 +14,12 @@
    with every map closed, maps a shape keeps in a registry too: a key it
    doesn't name neither leaves nor comes in.
 
+   Every function takes a wire first, made by make-wire-from-settings from
+   settings that write out every value that sets how wire behaves.
+
    One file for both languages: wire.json, wire.time and wire.types are a
-   .clj and a .cljs each, and each language loads its own; nothing here
-   differs between the two."
+   .clj and a .cljs each, and each language loads its own; here only the
+   settings differ between the two."
   (:require
    [malli.core :as m]
    [malli.error :as me]
@@ -28,33 +31,57 @@
    [wire.types :as types]
    [wire.walk :as walk]))
 
-(def ^:private decimal-schema
-  (m/-simple-schema {:type            :decimal
-                     :pred            types/decimal-value?
-                     :type-properties {:gen/schema :int
-                                       :gen/fmap   types/example-decimal}}))
+;; ---------------------------------------------------------------------------
+;; The settings, and a wire made from them
 
-(def ^:private registry
+(def settings-shape
+  "What a wire is made from, every key written out. On both sides:
+   :most-shapes-kept, how many shapes' tools are kept before all are
+   forgotten and made again as used. On the JVM: :json-limits, Jackson's
+   limits on the text it reads and writes. In the browser: :most-keys-kept,
+   how many JSON keys' keywords are kept the same way, and
+   :exact-decimals, the exact type a :decimal is held as (wire.big/big),
+   or nil to keep its text."
+  [:map {:closed true}
+   [:most-shapes-kept [:int {:min 1}]]
+   #?@(:clj  [[:json-limits json/limits-shape]]
+       :cljs [[:most-keys-kept [:int {:min 1}]]
+              [:exact-decimals [:maybe [:map {:closed true} [:decimal? fn?] [:read fn?] [:text fn?]]]]])])
+
+(defn- make-registry
   ;; the language's own :int, :double and (in the browser) :uuid, malli's
   ;; own schemas, the language's :time/… schemas, and :decimal
+  [settings]
   (mr/composite-registry
    types/schemas
    (m/default-schemas)
    time/schemas
-   {:decimal decimal-schema}))
+   {:decimal (types/make-decimal-schema settings)}))
 
-(def ^:private transformer
+(defn- make-transformer [settings]
   (apply mt/transformer
          (remove nil?
                  [(mt/json-transformer {::mt/map-of-key-decoders (assoc (mt/-string-decoders) :int types/int-key-from-wire)})
                   time/transformer
-                  (mt/transformer {:name     :decimal
-                                   :decoders {:decimal types/decimal-from-wire}
-                                   :encoders {:decimal types/decimal-to-wire}})
+                  (types/make-decimal-transformer settings)
                   (mt/transformer {:name     :big-integer
                                    :decoders {:int types/int-from-wire}
                                    :encoders {:int types/int-to-wire}})
                   types/id-transformer])))
+
+(defn make-wire-from-settings
+  "A wire: what the other functions take first, made from settings that fit
+   settings-shape. Settings that don't throw :wire/bad-settings, with every
+   problem by key. It holds each shape's tools as they are made, and in the
+   browser each JSON key's keyword: an app makes one and keeps it."
+  [settings]
+  (when-let [errors (me/humanize (m/explain settings-shape settings))]
+    (throw (ex-info "wire's settings don't fit settings-shape" {:type :wire/bad-settings :errors errors})))
+  {:settings       settings
+   :registry       (make-registry settings)
+   :transformer    (make-transformer settings)
+   :json           (json/make-json settings)
+   :tools-by-shape (atom {})})
 
 ;; ---------------------------------------------------------------------------
 ;; Errors: the same text on both sides
@@ -144,7 +171,7 @@
   "What a shape is made into: the one walk of each way, the decoder and
    encoder, the open check that says why any data doesn't fit, and the
    checks of both ways, with every map closed."
-  [shape]
+  [{:keys [registry transformer]} shape]
   (let [options {:registry registry}
         schema  (m/schema shape options)
         open    (make-ready schema false options)
@@ -157,20 +184,14 @@
      :fits-closed?   (m/validator closed)
      :explain-closed (m/explainer closed)}))
 
-(def ^:private most-shapes-kept
-  ;; an app has tens or hundreds of shapes; more means one is made on every
-  ;; call, and keeping them all would grow without end
-  1000)
-
-(def ^:private tools-by-shape
-  ;; each shape's tools, made the first time it is used; when there are
-  ;; more than an app has, they are all forgotten and made again as used
-  (atom {}))
-
-(defn- find-tools-for-shape [shape]
+(defn- find-tools-for-shape
+  "A shape's tools, made the first time it is used and kept; past the
+   settings' :most-shapes-kept (more than an app has: one is made on every
+   call), all are forgotten and made again as used."
+  [{:keys [settings tools-by-shape] :as wire} shape]
   (or (get @tools-by-shape shape)
-      (let [tools (make-tools-from-shape shape)]
-        (swap! tools-by-shape #(assoc (if (< (count %) most-shapes-kept) % {}) shape tools))
+      (let [tools (make-tools-from-shape wire shape)]
+        (swap! tools-by-shape #(assoc (if (< (count %) (:most-shapes-kept settings)) % {}) shape tools))
         tools)))
 
 ;; ---------------------------------------------------------------------------
@@ -183,8 +204,8 @@
 
    Decoded and checked in one walk; data the walk refuses goes through
    malli's whole decoder and check, which say why."
-  [shape json-data]
-  (let [{:keys [walk-in decode fits-closed? explain-closed]} (find-tools-for-shape shape)
+  [wire shape json-data]
+  (let [{:keys [walk-in decode fits-closed? explain-closed]} (find-tools-for-shape wire shape)
         walked                                               (walk-in json-data)]
     (if-not (walk/refused? walked)
       {:shaped-data walked}
@@ -206,8 +227,8 @@
    text the other side reads as it (a moment and a day fit only in the
    years the grammar writes). Data that doesn't fit is read back as the
    other side will read it, and checked."
-  [shape shaped-data]
-  (let [{:keys [walk-out encode decode explain-closed fits-closed?]} (find-tools-for-shape shape)
+  [wire shape shaped-data]
+  (let [{:keys [walk-out encode decode explain-closed fits-closed?]} (find-tools-for-shape wire shape)
         walked                                                       (walk-out shaped-data)]
     (if-not (walk/refused? walked)
       {:json-data walked}
@@ -218,15 +239,15 @@
 
 (defn find-errors-in-data-for-shape
   "Why data doesn't fit a shape, readable, by key; nil when it fits."
-  [shape data]
-  (humanize ((:explain (find-tools-for-shape shape)) data)))
+  [wire shape data]
+  (humanize ((:explain (find-tools-for-shape wire shape)) data)))
 
 (defn turn-data-into-json-text
   "Data as JSON text; keyword keys keep their namespace: \"post/title\"."
-  [data]
-  (json/write-json data))
+  [wire data]
+  (json/write-json (:json wire) data))
 
 (defn turn-json-text-into-data
   "JSON text as data; keys become keywords, \"post/title\" → :post/title."
-  [json-text]
-  (json/read-json json-text))
+  [wire json-text]
+  (json/read-json (:json wire) json-text))
