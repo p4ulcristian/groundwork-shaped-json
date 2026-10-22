@@ -10,6 +10,7 @@
   "big.js, as wire.types/use-exact-decimals! takes it."
   {:decimal? #(instance? Big %)
    :read     #(Big. %)
-   :text     #(.toString ^js %)})
+   ;; toFixed with no places: plain digits, never 1e-7 as toString gives
+   :text     #(.toFixed ^js %)})
 
 (types/use-exact-decimals! big)

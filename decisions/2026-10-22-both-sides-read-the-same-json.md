@@ -1,5 +1,7 @@
 # Both sides read the same JSON, and refuse the same
 
+> Added to by [Moments and days have one grammar on both sides](2026-10-22-moments-and-days-have-one-grammar.md) (2026-10-22).
+
 > Changes in part [JSON and malli on the wire](2026-10-12-json-and-malli-on-the-wire.md): in the browser, a whole number too big for JavaScript stays its text, as an id does.
 
 **Decision:** the JVM and the browser accept the same JSON for a shape, and refuse the same.

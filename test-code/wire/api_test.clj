@@ -88,3 +88,18 @@
     (is (contains? (wire/turn-json-data-into-shaped-data-or-errors :decimal text) :errors) text))
   (is (contains? (wire/turn-json-data-into-shaped-data-or-errors :decimal 12.3) :errors)
       "a JSON number may already be rounded"))
+
+(deftest a-jdbc-time-goes-out-as-its-moment-or-day
+  (is (= {:json-data "2026-10-12T10:00:00.123456789Z"}
+         (wire/turn-shaped-data-into-json-data-or-errors
+          :time/instant (doto (java.sql.Timestamp/from (java.time.Instant/parse "2026-10-12T10:00:00Z")) (.setNanos 123456789)))))
+  (is (= {:json-data "2026-10-12T10:00:00Z"}
+         (wire/turn-shaped-data-into-json-data-or-errors :time/instant (java.util.Date/from (java.time.Instant/parse "2026-10-12T10:00:00Z")))))
+  (is (= {:json-data "2026-11-15"}
+         (wire/turn-shaped-data-into-json-data-or-errors :time/local-date (java.sql.Date/valueOf "2026-11-15")))))
+
+(deftest the-kept-tools-stay-few
+  (dotimes [i 1100]
+    (is (= {:shaped-data i} (wire/turn-json-data-into-shaped-data-or-errors [:enum i] i))))
+  (is (<= (count @@#'wire.api/tools-by-shape) 1000)
+      "a shape made on every call doesn't grow the kept tools without end"))

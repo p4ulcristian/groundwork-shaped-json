@@ -1,5 +1,7 @@
 # wire is for the app's edges, in five functions
 
+> Changed in part by [Data that fits goes out without being read back](2026-10-22-data-that-fits-goes-out-without-being-read-back.md) (2026-10-22): only data that doesn't fit is read back.
+
 > Changed in part by [The way in names every key too](2026-10-22-the-way-in-names-every-key-too.md) (2026-10-22): the way in is checked against the closed shape too.
 
 > Changes in part [Shaped data is data that fits its shape](2026-10-22-shaped-data-is-data-that-fits-its-shape.md): `does-data-fit-shape?` is gone, and the way out is `turn-shaped-data-into-json-data-or-errors`, read back and checked against the closed shape.

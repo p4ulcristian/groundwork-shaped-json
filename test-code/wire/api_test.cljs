@@ -174,3 +174,12 @@
 
 (deftest a-uuid-value-is-its-text-in-json-text
   (is (= "{\"shop/id\":\"7f3c1e2a-0000-4000-8000-000000000001\"}" (wire/turn-data-into-json-text {:shop/id id}))))
+
+(deftest a-decimal-of-any-size-leaves-the-browser
+  (types/use-exact-decimals! big/big)
+  (doseq [text ["0.0000001" "1000000000000000000000" "-0.5"]]
+    (is (= {:json-data text} (wire/turn-shaped-data-into-json-data-or-errors :decimal (types/decimal text))) text)))
+
+(deftest an-id-is-lower-case-text
+  (is (= {:shaped-data "7f3c1e2a-0000-4000-8000-00000000000a"}
+         (wire/turn-json-data-into-shaped-data-or-errors :uuid "7F3C1E2A-0000-4000-8000-00000000000A"))))

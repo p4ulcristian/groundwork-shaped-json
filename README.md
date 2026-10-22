@@ -8,7 +8,7 @@ for JavaScript travel as text and come back as their real types. Both sides
 read the same JSON and refuse the same.
 
 ```clojure
-io.github.p4ulcristian/wire {:git/tag "v0.1.2" :git/sha "…"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.1.2
+io.github.p4ulcristian/wire {:git/tag "v0.1.3" :git/sha "…"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.1.3
 ```
 
 Needs only malli and jsonista. One namespace for both languages:
@@ -45,9 +45,25 @@ Needs only malli and jsonista. One namespace for both languages:
 ;=> {:shaped-data #:order{:id #uuid "1d000000-…" :total 120.50M :day #object[java.time.LocalDate "2026-11-15"]}}
 ```
 
+## Both sides take and refuse the same
+
+- every map is closed both ways, maps a shape keeps in a registry too
+  (`[:schema {:registry {::row [:map …]}} [:vector ::row]]`, recursive
+  ones at every depth)
+- a tagged union on a keyword, `[:multi {:dispatch :payment/kind} …]`,
+  reads its text: `"payment/card"` finds `:payment/card`
+- a moment is `2026-10-12T10:00:00Z`: seconds always, a fraction of 1 to 9
+  digits, `Z` or an offset up to ±18:00, upper-case `T` and `Z`, years
+  0000 to 9999, no leap second; a day is `2026-11-15`
+- a `:double` is finite: JSON has no NaN or Infinity
+- an error says the same on both sides: `"should be an id"`,
+  `"should be at most 10"`, `"should be a moment, like 2026-10-12T10:00:00Z"`
+- on the JVM a `java.sql.Timestamp` or `java.util.Date` goes out as its
+  moment and a `java.sql.Date` as its day, as JDBC gives them
+
 ## In the browser
 
-- an id stays its text
+- an id stays its text, in lower case as the JVM writes it
 - a whole number is a number within JavaScript's safe range and its text
   beyond it (to the ends of a JVM long); a number beyond the range may
   have been rounded, so it doesn't fit `:int`
@@ -55,6 +71,23 @@ Needs only malli and jsonista. One namespace for both languages:
   built on Closure's `goog.date`; both print as the ISO text they came as
 - a decimal is its text, or exact with big.js: require `wire.big` (and add
   `big.js` to the app's package.json)
+
+## Speed
+
+1000 orders (382 KB of JSON text), the median of 60 rounds:
+
+| | JVM | browser (node, advanced build) |
+|---|---|---|
+| way out, shaped data → JSON data | 2.8 ms | 7.5 ms |
+| JSON data → text | 1.5 ms | 3.1 ms |
+| text → JSON data | 3.1 ms | 4.1 ms |
+| way in, JSON data → shaped data | 3.2 ms | 8.9 ms |
+| the whole round | 11.4 ms | 26.1 ms |
+| plain JSON, parse + write | | 2.9 ms |
+
+Data that fits its shape goes out without being read back; moments and
+days are read by position; the browser turns JSON into data and back in
+one walk. Most of what is left is malli's own work and Clojure's maps.
 
 ## Tests
 

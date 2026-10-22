@@ -5,12 +5,17 @@
   (:require
    [jsonista.core :as json]))
 
+(set! *warn-on-reflection* true)
+
 (defn- key-name [k]
   (if (keyword? k) (subs (str k) 1) (str k)))
 
 (def ^:private mapper
-  (json/object-mapper {:decode-key-fn keyword
-                       :encode-key-fn key-name}))
+  ;; text after the JSON is refused, as JSON.parse refuses it
+  (doto ^com.fasterxml.jackson.databind.ObjectMapper
+   (json/object-mapper {:decode-key-fn keyword
+                        :encode-key-fn key-name})
+    (.enable com.fasterxml.jackson.databind.DeserializationFeature/FAIL_ON_TRAILING_TOKENS)))
 
 (defn write-json
   "Data as JSON text."

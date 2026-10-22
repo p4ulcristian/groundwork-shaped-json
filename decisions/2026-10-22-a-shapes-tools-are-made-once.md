@@ -1,5 +1,7 @@
 # A shape's tools are made once
 
+> Changed in part by [The kept tools are forgotten past a thousand shapes](2026-10-22-the-kept-tools-are-forgotten-past-a-thousand.md) (2026-10-22): at most 1000 are kept.
+
 **Decision:** the first time a shape is used, wire makes everything it needs from it (the malli schema, its decoder and encoder, its checks, the closed checks of the way out) and keeps them, by the shape, for as long as the app runs. Every later call with an equal shape takes them from there. The five functions stay as they are.
 
 **Why:** a shape never changes while an app runs, but each call built all of it again and threw it away, on every ask, answer and job, on the server and in the browser. Kept, one way out plus one way in of an order with five lines went from 77 to 18 microseconds on the JVM.
