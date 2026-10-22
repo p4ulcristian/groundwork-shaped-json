@@ -11,3 +11,4 @@ The first six were made while wire was a library inside Groundwork, a Clojure fr
 - [Shaped data is data that fits its shape](2026-10-22-shaped-data-is-data-that-fits-its-shape.md), changed in part by [wire is for the app's edges](2026-10-22-wire-is-for-the-apps-edges.md)
 - [wire is for the app's edges, in five functions](2026-10-22-wire-is-for-the-apps-edges.md)
 - [wire is its own library, one namespace for both languages](2026-10-22-wire-is-its-own-library.md)
+- [A shape's tools are made once](2026-10-22-a-shapes-tools-are-made-once.md)

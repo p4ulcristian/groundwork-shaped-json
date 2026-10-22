@@ -53,20 +53,40 @@
                                    :encoders {:int types/int-to-wire}})
                   types/id-transformer])))
 
-(defn- make-schema-from-shape
-  "A shape made into a malli schema, with this library's schemas."
+(defn- make-tools-from-shape
+  "What a shape is made into: a malli schema with this library's schemas,
+   and the decoder, encoder and checks built from it, the way out's checks
+   with every map closed."
   [shape]
-  (m/schema shape {:registry registry}))
+  (let [schema (m/schema shape {:registry registry})
+        closed (mu/closed-schema schema)]
+    {:decode         (m/decoder schema transformer)
+     :encode         (m/encoder schema transformer)
+     :fits?          (m/validator schema)
+     :explain        (m/explainer schema)
+     :fits-closed?   (m/validator closed)
+     :explain-closed (m/explainer closed)}))
+
+(def ^:private tools-by-shape
+  ;; each shape's tools, made the first time it is used: shapes are an
+  ;; app's few, written once, and never change while it runs
+  (atom {}))
+
+(defn- find-tools-for-shape [shape]
+  (or (get @tools-by-shape shape)
+      (let [tools (make-tools-from-shape shape)]
+        (swap! tools-by-shape assoc shape tools)
+        tools)))
 
 (defn turn-json-data-into-shaped-data-or-errors
   "JSON data turned into shaped data: {:shaped-data …} when it fits the
    shape, or {:errors …} (readable, by key) when it doesn't."
   [shape json-data]
-  (let [schema      (make-schema-from-shape shape)
-        shaped-data (m/decode schema json-data transformer)]
-    (if (m/validate schema shaped-data)
+  (let [{:keys [decode fits? explain]} (find-tools-for-shape shape)
+        shaped-data                    (decode json-data)]
+    (if (fits? shaped-data)
       {:shaped-data shaped-data}
-      {:errors (me/humanize (m/explain schema shaped-data))})))
+      {:errors (me/humanize (explain shaped-data))})))
 
 (defn turn-shaped-data-into-json-data-or-errors
   "Shaped data turned into JSON data, ids, decimals and dates as text:
@@ -76,18 +96,17 @@
    name never leaves (an extra column, a password hash), and a value that
    only goes out right passes (a js/Date for a moment, in the browser)."
   [shape shaped-data]
-  (let [schema    (make-schema-from-shape shape)
-        closed    (mu/closed-schema schema)
-        json-data (m/encode schema shaped-data transformer)
-        back      (m/decode closed json-data transformer)]
-    (if (m/validate closed back)
+  (let [{:keys [encode decode fits-closed? explain-closed]} (find-tools-for-shape shape)
+        json-data                                           (encode shaped-data)
+        back                                                (decode json-data)]
+    (if (fits-closed? back)
       {:json-data json-data}
-      {:errors (me/humanize (m/explain closed back))})))
+      {:errors (me/humanize (explain-closed back))})))
 
 (defn find-errors-in-data-for-shape
   "Why data doesn't fit a shape, readable, by key; nil when it fits."
   [shape data]
-  (me/humanize (m/explain (make-schema-from-shape shape) data)))
+  (me/humanize ((:explain (find-tools-for-shape shape)) data)))
 
 (defn turn-data-into-json-text
   "Data as JSON text; keyword keys keep their namespace: \"post/title\"."
