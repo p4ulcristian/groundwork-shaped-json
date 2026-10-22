@@ -8,7 +8,7 @@
 
 > Changes in part [Shaped data is data that fits its shape](2026-10-22-shaped-data-is-data-that-fits-its-shape.md): `does-data-fit-shape?` is gone, and the way out is `turn-shaped-data-into-json-data-or-errors`, read back and checked against the closed shape.
 
-**Decision:** wire is used where data leaves the app and has to come back as it was: the browser (transport), the job queue (background-jobs), the settings and the page (main). The JSON Groundwork writes for Postgres or reads from it (access's `groundwork.asking`, sync's change messages) is the library's that writes the SQL reading it: that library uses jsonista itself, with the keys as Postgres names them.
+**Decision:** wire is used where data leaves the app and has to come back as it was: the browser (transport), the job queue (background-jobs), the settings and the page (main). The JSON house writes for Postgres or reads from it (access's `groundwork.asking`, sync's change messages) is the library's that writes the SQL reading it: that library uses jsonista itself, with the keys as Postgres names them.
 
 wire's api is five functions, the same on both sides:
 

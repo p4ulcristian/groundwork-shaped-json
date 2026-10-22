@@ -2,7 +2,7 @@
 
 One file per decision: `YYYY-MM-DD-what-we-decided.md`. The title is the decision. Each file says what we decided, why, and what we chose against. A decision changes by a new file; the old one says so at the top (`Replaced by` or `Changed in part by`), and nothing else in it is rewritten.
 
-The first six were made while wire was a library inside Groundwork, a Clojure framework; they name its parts (handlers, answers, jobs) where they came from.
+The first six were made while wire was a library inside house (named Groundwork then), the Clojure framework that composes the manor libraries; they name its parts (handlers, answers, jobs) where they came from.
 
 - [JSON and malli on the wire](2026-10-12-json-and-malli-on-the-wire.md), changed in part by [Both sides read the same JSON](2026-10-22-both-sides-read-the-same-json.md)
 - [Dates and decimals keep their types in the browser](2026-10-12-dates-and-decimals-keep-their-types-in-the-browser.md)

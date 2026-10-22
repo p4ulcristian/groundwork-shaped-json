@@ -2,7 +2,7 @@
 
 > **Changed in part** by [wire is for the app's edges, in five functions](2026-10-22-wire-is-for-the-apps-edges.md) (2026-10-22): `does-data-fit-shape?` is gone; the way out is `turn-shaped-data-into-json-data-or-errors`, read back and checked against the closed shape.
 
-> Changes in part Groundwork's decision "A name is a sentence that starts with a verb": wire's names say "shaped data" and "data", not "value".
+> Changes in part house's decision "A name is a sentence that starts with a verb": wire's names say "shaped data" and "data", not "value".
 
 **Decision:** wire names the three forms data takes on its way, and its api says them:
 
