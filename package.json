@@ -1,0 +1,14 @@
+{
+  "name": "wire",
+  "private": true,
+  "description": "wire's npm dependencies (big.js for wire.big's exact decimals) and the ClojureScript test build",
+  "scripts": {
+    "test": "shadow-cljs compile test"
+  },
+  "dependencies": {
+    "big.js": "7.0.1"
+  },
+  "devDependencies": {
+    "shadow-cljs": "3.5.7"
+  }
+}

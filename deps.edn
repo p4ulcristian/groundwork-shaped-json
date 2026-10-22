@@ -1,0 +1,17 @@
+;; wire: data that crosses an edge comes back as what it was.
+;; One tree for both languages: source-code/wire/, one namespace each.
+{:paths ["source-code"]
+
+ :deps
+ {metosin/malli    {:mvn/version "0.20.3"}
+  metosin/jsonista {:mvn/version "1.0.2"}}
+
+ :aliases
+ {;; the JVM tests:  clojure -X:test
+  :test {:extra-paths ["test-code"]
+         :extra-deps  {io.github.cognitect-labs/test-runner {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :exec-fn     cognitect.test-runner.api/test
+         :exec-args   {:dirs ["test-code"]}}
+  ;; the browser tests, through shadow-cljs:  npm install && npx shadow-cljs compile test
+  :cljs {:extra-paths ["test-code"]
+         :extra-deps  {thheller/shadow-cljs {:mvn/version "3.5.7"}}}}}
