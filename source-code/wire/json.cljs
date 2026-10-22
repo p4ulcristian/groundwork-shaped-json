@@ -5,10 +5,15 @@
 (defn- key-name [k]
   (if (keyword? k) (subs (str k) 1) (str k)))
 
+(defn- uuid-as-text
+  "JSON.stringify's replacer: a UUID value is its text, as on the JVM."
+  [_ v]
+  (if (uuid? v) (str v) v))
+
 (defn write-json
-  "Data as JSON text."
+  "Data as JSON text; a UUID value as its text."
   [x]
-  (js/JSON.stringify (clj->js x :keyword-fn key-name)))
+  (js/JSON.stringify (clj->js x :keyword-fn key-name) uuid-as-text))
 
 (defn read-json
   "JSON text as data."

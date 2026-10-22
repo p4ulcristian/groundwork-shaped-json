@@ -4,11 +4,13 @@ One file per decision: `YYYY-MM-DD-what-we-decided.md`. The title is the decisio
 
 The first six were made while wire was a library inside Groundwork, a Clojure framework; they name its parts (handlers, answers, jobs) where they came from.
 
-- [JSON and malli on the wire](2026-10-12-json-and-malli-on-the-wire.md)
+- [JSON and malli on the wire](2026-10-12-json-and-malli-on-the-wire.md), changed in part by [Both sides read the same JSON](2026-10-22-both-sides-read-the-same-json.md)
 - [Dates and decimals keep their types in the browser](2026-10-12-dates-and-decimals-keep-their-types-in-the-browser.md)
 - [An id is text in the browser](2026-10-14-an-id-is-text-in-the-browser.md)
 - [Browser values are typed, and small](2026-10-19-browser-values-are-typed-small.md)
 - [Shaped data is data that fits its shape](2026-10-22-shaped-data-is-data-that-fits-its-shape.md), changed in part by [wire is for the app's edges](2026-10-22-wire-is-for-the-apps-edges.md)
-- [wire is for the app's edges, in five functions](2026-10-22-wire-is-for-the-apps-edges.md)
+- [wire is for the app's edges, in five functions](2026-10-22-wire-is-for-the-apps-edges.md), changed in part by [The way in names every key too](2026-10-22-the-way-in-names-every-key-too.md)
 - [wire is its own library, one namespace for both languages](2026-10-22-wire-is-its-own-library.md)
 - [A shape's tools are made once](2026-10-22-a-shapes-tools-are-made-once.md)
+- [The way in names every key too](2026-10-22-the-way-in-names-every-key-too.md)
+- [Both sides read the same JSON, and refuse the same](2026-10-22-both-sides-read-the-same-json.md)

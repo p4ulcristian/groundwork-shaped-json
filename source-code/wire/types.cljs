@@ -1,7 +1,8 @@
 (ns wire.types
   "Decimals, whole numbers and ids in the browser. A decimal is its text,
    \"12.30\", or an exact value once use-exact-decimals! is given one
-   (wire.big gives big.js). An id is its text."
+   (wire.big gives big.js). A whole number is a number within JavaScript's
+   safe range and its text beyond it. An id is its text."
   (:require
    [malli.core :as m]
    [malli.transform :as mt]))
@@ -55,11 +56,38 @@
   (if-let [{:keys [read]} @exact] (read (str n)) (str n)))
 
 (defn int-from-wire
-  "Whole numbers stay as they came: one beyond JavaScript's safe range is text."
+  "Whole numbers stay as they came: one beyond JavaScript's safe range is
+   text."
   [x]
   x)
 
 (defn int-to-wire [x] x)
+
+(def ^:private integer-text-pattern #"^-?(0|[1-9]\d*)$")
+
+(def ^:private min-safe-integer (js/BigInt js/Number.MIN_SAFE_INTEGER))
+(def ^:private max-safe-integer (js/BigInt js/Number.MAX_SAFE_INTEGER))
+(def ^:private min-long (js/BigInt "-9223372036854775808"))
+(def ^:private max-long (js/BigInt "9223372036854775807"))
+
+(defn- big-integer-text?
+  "Whether x is the text of a whole number beyond JavaScript's safe range
+   that a JVM long holds."
+  [x]
+  (and (string? x)
+       (some? (re-matches integer-text-pattern x))
+       (let [n (js/BigInt x)]
+         (and (or (< n min-safe-integer) (< max-safe-integer n))
+              (<= min-long n max-long)))))
+
+(def int-schema
+  "An :int in the browser: a number within JavaScript's safe range, or the
+   text of a whole number beyond it that a JVM long holds. A number beyond
+   the range may have been rounded, so it doesn't fit. :min and :max hold
+   for both."
+  (m/-simple-schema {:type          :int
+                     :pred          #(or (js/Number.isSafeInteger %) (big-integer-text? %))
+                     :property-pred (m/-min-max-pred #(if (string? %) (js/BigInt %) %))}))
 
 (def ^:private id-text-pattern
   #"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
@@ -71,9 +99,11 @@
                      :pred            #(and (string? %) (some? (re-matches id-text-pattern %)))
                      :type-properties {:error/message "should be an id"}}))
 
-(def id-schemas
-  "In the browser :uuid is an id as text."
-  {:uuid id-text-schema})
+(def schemas
+  "In the browser :uuid is an id as text, and :int a whole number as
+   int-schema says."
+  {:uuid id-text-schema
+   :int  int-schema})
 
 (def id-transformer
   "A UUID value given in the browser becomes its text, both ways."

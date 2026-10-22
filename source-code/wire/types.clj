@@ -1,7 +1,11 @@
 (ns wire.types
   "Decimals, whole numbers and ids on the JVM. A decimal is a BigDecimal and
-   travels as its plain text, \"12.30\". A whole number beyond JavaScript's
-   safe range travels as text. An id is a real UUID.")
+   travels as its plain text, \"12.30\". A whole number travels as a number
+   within JavaScript's safe range and as text beyond it. An id is a real
+   UUID. The JVM reads the same JSON the browser reads, and refuses the
+   same.")
+
+(def ^:private decimal-text-pattern #"^-?\d+(\.\d+)?$")
 
 (defn decimal-value?
   "Whether x is a decimal as the JVM holds it."
@@ -18,9 +22,12 @@
   [d]
   (.toPlainString ^BigDecimal d))
 
-(defn decimal-from-wire [x]
-  (if (string? x)
-    (try (BigDecimal. ^String x) (catch Exception _ x))
+(defn decimal-from-wire
+  "Plain decimal text, \"12.30\", becomes a BigDecimal; anything else, an
+   exponent's \"1E+3\" too, stays as it came and fails :decimal."
+  [x]
+  (if (and (string? x) (re-matches decimal-text-pattern x))
+    (BigDecimal. ^String x)
     x))
 
 (defn decimal-to-wire [x]
@@ -31,14 +38,41 @@
   [n]
   (BigDecimal. (str n ".00")))
 
-(defn int-from-wire [x]
-  (if (string? x) (or (parse-long x) x) x))
+(def ^:private max-safe-integer
+  ;; JavaScript's Number.MAX_SAFE_INTEGER: the largest whole number a
+  ;; browser holds exactly
+  9007199254740991)
 
-(defn int-to-wire [x]
-  (if (and (integer? x) (> (abs x) 9007199254740991)) (str x) x))
+(defn- safe-integer? [n]
+  (<= (- max-safe-integer) n max-safe-integer))
 
-(def id-schemas
-  "On the JVM :uuid is malli's own: a real UUID."
+(def ^:private integer-text-pattern #"^-?(0|[1-9]\d*)$")
+
+(defn int-from-wire
+  "The text of a whole number beyond JavaScript's safe range becomes a long.
+   A number beyond that range may have been rounded by a browser, so it
+   becomes a double, as a browser read it, and fails :int. The text of a
+   number within the range stays text and fails :int: such a number travels
+   as a number."
+  [x]
+  (cond
+    (and (string? x) (re-matches integer-text-pattern x))
+    (let [n (parse-long x)]
+      (if (and n (not (safe-integer? n))) n x))
+
+    (and (integer? x) (not (safe-integer? x)))
+    (double x)
+
+    :else
+    x))
+
+(defn int-to-wire
+  "A whole number beyond JavaScript's safe range goes out as its text."
+  [x]
+  (if (and (integer? x) (not (safe-integer? x))) (str x) x))
+
+(def schemas
+  "On the JVM :uuid and :int are malli's own: a real UUID, a long."
   {})
 
 (def id-transformer

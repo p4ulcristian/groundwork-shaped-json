@@ -9,7 +9,10 @@
    number too big for JavaScript travel as text and come back as what they
    are: on the JVM java.time, BigDecimal and real UUIDs; in the browser an
    Instant and a Day (wire.time), a decimal's text or big.js (wire.big),
-   and an id as text. Money travels as whole cents, an :int.
+   an id as text, and a whole number beyond JavaScript's safe range as its
+   text. Money travels as whole cents, an :int. Both ways check the shape
+   with every map closed: a key it doesn't name neither leaves nor comes
+   in.
 
    One file for both languages: wire.json, wire.time and wire.types are a
    .clj and a .cljs each, and each language loads its own; nothing here
@@ -33,9 +36,9 @@
 
 (def ^:private registry
   ;; malli's own schemas, the language's :time/… schemas, :decimal, and in
-  ;; the browser :uuid as an id's text
+  ;; the browser :uuid as an id's text and :int as wire.types says
   (mr/composite-registry
-   types/id-schemas
+   types/schemas
    (m/default-schemas)
    time/schemas
    {:decimal decimal-schema}))
@@ -55,14 +58,13 @@
 
 (defn- make-tools-from-shape
   "What a shape is made into: a malli schema with this library's schemas,
-   and the decoder, encoder and checks built from it, the way out's checks
-   with every map closed."
+   the decoder and encoder built from it, the open check that says why any
+   data doesn't fit, and the checks of both ways, with every map closed."
   [shape]
   (let [schema (m/schema shape {:registry registry})
         closed (mu/closed-schema schema)]
     {:decode         (m/decoder schema transformer)
      :encode         (m/encoder schema transformer)
-     :fits?          (m/validator schema)
      :explain        (m/explainer schema)
      :fits-closed?   (m/validator closed)
      :explain-closed (m/explainer closed)}))
@@ -80,13 +82,14 @@
 
 (defn turn-json-data-into-shaped-data-or-errors
   "JSON data turned into shaped data: {:shaped-data …} when it fits the
-   shape, or {:errors …} (readable, by key) when it doesn't."
+   shape with every map closed, or {:errors …} (readable, by key) when it
+   doesn't: a key the shape doesn't name never comes in."
   [shape json-data]
-  (let [{:keys [decode fits? explain]} (find-tools-for-shape shape)
-        shaped-data                    (decode json-data)]
-    (if (fits? shaped-data)
+  (let [{:keys [decode fits-closed? explain-closed]} (find-tools-for-shape shape)
+        shaped-data                                  (decode json-data)]
+    (if (fits-closed? shaped-data)
       {:shaped-data shaped-data}
-      {:errors (me/humanize (explain shaped-data))})))
+      {:errors (me/humanize (explain-closed shaped-data))})))
 
 (defn turn-shaped-data-into-json-data-or-errors
   "Shaped data turned into JSON data, ids, decimals and dates as text:

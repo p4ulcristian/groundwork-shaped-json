@@ -133,3 +133,44 @@
            (is (= "0.3" (types/decimal-text (.plus area (types/decimal "0.2")))))
            (is (= "0.1" (turn-shaped-data-into-json-data :decimal area)))))
        (finally (types/use-exact-decimals! big/big))))
+
+(deftest the-way-in-names-every-key
+  (let [order [:map [:order/id :uuid] [:order/lines [:vector [:map [:line/cents :int]]]]]]
+    (is (contains? (:errors (wire/turn-json-data-into-shaped-data-or-errors
+                             order {:order/id (str id) :order/lines [] :order/shop-id "x"}))
+                   :order/shop-id)
+        "a key the shape doesn't name never comes in")
+    (is (= {:order/lines [{:line/secret ["disallowed key"]}]}
+           (:errors (wire/turn-json-data-into-shaped-data-or-errors
+                     order {:order/id (str id) :order/lines [{:line/cents 1 :line/secret 2}]})))
+        "nor inside")
+    (is (contains? (wire/turn-json-data-into-shaped-data-or-errors
+                    [:map {:closed false} [:order/id :uuid]] {:order/id (str id) :order/note "x"})
+                   :shaped-data)
+        "a map the shape leaves open by name stays open")))
+
+(deftest a-whole-number-beyond-javascripts-range-is-its-text
+  (let [n [:map [:n :int]]]
+    (testing "within the safe range: a number"
+      (is (= {:shaped-data {:n 9007199254740991}} (wire/turn-json-data-into-shaped-data-or-errors n {:n 9007199254740991})))
+      (is (= {:n -9007199254740991} (turn-shaped-data-into-json-data n {:n -9007199254740991}))))
+    (testing "beyond it: its text, both ways, to the ends of a long"
+      (doseq [text ["9007199254740992" "-9007199254740992" "9223372036854775807" "-9223372036854775808"]]
+        (is (= {:shaped-data {:n text}} (wire/turn-json-data-into-shaped-data-or-errors n {:n text})) text)
+        (is (= {:n text} (turn-shaped-data-into-json-data n {:n text})) text)))
+    (testing "the server's text, read from JSON text"
+      (is (= {:shaped-data {:n "9007199254740993"}}
+             (wire/turn-json-data-into-shaped-data-or-errors n (wire/turn-json-text-into-data "{\"n\":\"9007199254740993\"}")))))
+    (testing "refused: a number beyond the range, maybe rounded already"
+      (is (contains? (wire/turn-json-data-into-shaped-data-or-errors n (wire/turn-json-text-into-data "{\"n\":9007199254740993}")) :errors))
+      (is (nil? (turn-shaped-data-into-json-data n {:n 9007199254740992}))))
+    (testing "refused: text a number travels as a number, or no whole number a long holds"
+      (doseq [text ["42" "042" "-0" "1.0" "9223372036854775808" "nope"]]
+        (is (contains? (wire/turn-json-data-into-shaped-data-or-errors n {:n text}) :errors) text)))
+    (testing ":min and :max hold for the text too"
+      (is (contains? (wire/turn-json-data-into-shaped-data-or-errors [:int {:max 10}] "9007199254740993") :errors))
+      (is (contains? (wire/turn-json-data-into-shaped-data-or-errors [:int {:min 0}] "9007199254740993") :shaped-data))
+      (is (contains? (wire/turn-json-data-into-shaped-data-or-errors [:int {:min 0}] -1) :errors)))))
+
+(deftest a-uuid-value-is-its-text-in-json-text
+  (is (= "{\"shop/id\":\"7f3c1e2a-0000-4000-8000-000000000001\"}" (wire/turn-data-into-json-text {:shop/id id}))))

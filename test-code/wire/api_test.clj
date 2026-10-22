@@ -51,3 +51,40 @@
     (is (contains? (:errors (wire/turn-shaped-data-into-json-data-or-errors order {:order/id id :order/total "twelve"}))
                    :order/total)
         "a value that doesn't come back as its type")))
+
+(deftest the-way-in-names-every-key
+  (let [order [:map [:order/id :uuid] [:order/lines [:vector [:map [:line/cents :int]]]]]]
+    (is (contains? (:errors (wire/turn-json-data-into-shaped-data-or-errors
+                             order {:order/id (str id) :order/lines [] :order/shop-id "x"}))
+                   :order/shop-id)
+        "a key the shape doesn't name never comes in")
+    (is (= {:order/lines [{:line/secret ["disallowed key"]}]}
+           (:errors (wire/turn-json-data-into-shaped-data-or-errors
+                     order {:order/id (str id) :order/lines [{:line/cents 1 :line/secret 2}]})))
+        "nor inside")
+    (is (contains? (wire/turn-json-data-into-shaped-data-or-errors
+                    [:map {:closed false} [:order/id :uuid]] {:order/id (str id) :order/note "x"})
+                   :shaped-data)
+        "a map the shape leaves open by name stays open")))
+
+(deftest a-whole-number-is-a-number-a-browser-holds-exactly
+  (let [n [:map [:n :int]]]
+    (testing "within JavaScript's safe range: a number"
+      (is (= {:json-data {:n 9007199254740991}} (wire/turn-shaped-data-into-json-data-or-errors n {:n 9007199254740991})))
+      (is (= {:shaped-data {:n -9007199254740991}} (wire/turn-json-data-into-shaped-data-or-errors n {:n -9007199254740991}))))
+    (testing "beyond it: text, both ways, to the ends of a long"
+      (doseq [x [9007199254740992 -9007199254740992 Long/MAX_VALUE Long/MIN_VALUE]]
+        (is (= {:json-data {:n (str x)}} (wire/turn-shaped-data-into-json-data-or-errors n {:n x})))
+        (is (= {:shaped-data {:n x}} (wire/turn-json-data-into-shaped-data-or-errors n {:n (str x)})))))
+    (testing "refused: a number beyond the range, which a browser may have rounded"
+      (is (contains? (wire/turn-json-data-into-shaped-data-or-errors n {:n 9007199254740993}) :errors)))
+    (testing "refused: text a number travels as a number, or no whole number a long holds"
+      (doseq [text ["42" "042" "-0" "1.0" "9223372036854775808" "nope"]]
+        (is (contains? (wire/turn-json-data-into-shaped-data-or-errors n {:n text}) :errors) text)))))
+
+(deftest a-decimal-is-plain-text
+  (is (= {:shaped-data -0.5M} (wire/turn-json-data-into-shaped-data-or-errors :decimal "-0.5")))
+  (doseq [text ["1E+3" "1e3" ".5" "+1" "1." "NaN" " 1"]]
+    (is (contains? (wire/turn-json-data-into-shaped-data-or-errors :decimal text) :errors) text))
+  (is (contains? (wire/turn-json-data-into-shaped-data-or-errors :decimal 12.3) :errors)
+      "a JSON number may already be rounded"))

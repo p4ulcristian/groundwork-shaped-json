@@ -1,5 +1,7 @@
 # JSON and malli on the wire
 
+> **Changed in part** by [Both sides read the same JSON, and refuse the same](2026-10-22-both-sides-read-the-same-json.md) (2026-10-22): in the browser, a whole number too big for JavaScript stays its text.
+
 > **Changed in part** by [Dates and decimals keep their types in the browser](2026-10-12-dates-and-decimals-keep-their-types-in-the-browser.md) (2026-10-12): it settles the "still to decide" below.
 
 > **Changed in part** by [An id is text in the browser](2026-10-14-an-id-is-text-in-the-browser.md) (2026-10-14): ids stay text in the browser and come back as real ids only on the server.

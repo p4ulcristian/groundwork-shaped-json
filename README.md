@@ -3,11 +3,12 @@
 Data that crosses an edge comes back as what it was, on the JVM and in the
 browser. JSON knows only text, numbers, true/false, lists and maps; a
 [malli](https://github.com/metosin/malli) shape says what every value
-really is, so ids, exact decimals, days, moments and numbers too big for
-JavaScript travel as text and come back as their real types.
+really is, so ids, exact decimals, days, moments and whole numbers too big
+for JavaScript travel as text and come back as their real types. Both sides
+read the same JSON and refuse the same.
 
 ```clojure
-io.github.p4ulcristian/wire {:git/tag "v0.1.0" :git/sha "…"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.1.0
+io.github.p4ulcristian/wire {:git/tag "v0.1.2" :git/sha "…"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.1.2
 ```
 
 Needs only malli and jsonista. One namespace for both languages:
@@ -20,7 +21,7 @@ Needs only malli and jsonista. One namespace for both languages:
 |---|---|
 | `turn-json-text-into-data` | JSON text → JSON data; `"post/title"` becomes `:post/title` |
 | `turn-data-into-json-text` | JSON data → JSON text; keys keep their namespace |
-| `turn-json-data-into-shaped-data-or-errors` | the way in: `{:shaped-data …}` or `{:errors …}` |
+| `turn-json-data-into-shaped-data-or-errors` | the way in: `{:shaped-data …}` or `{:errors …}`, checked with every map closed: a key the shape doesn't name never comes in |
 | `turn-shaped-data-into-json-data-or-errors` | the way out: `{:json-data …}` or `{:errors …}`, read back as the other side will and checked with every map closed: a key the shape doesn't name never leaves |
 | `find-errors-in-data-for-shape` | why data doesn't fit a shape; nil when it fits |
 
@@ -47,6 +48,9 @@ Needs only malli and jsonista. One namespace for both languages:
 ## In the browser
 
 - an id stays its text
+- a whole number is a number within JavaScript's safe range and its text
+  beyond it (to the ends of a JVM long); a number beyond the range may
+  have been rounded, so it doesn't fit `:int`
 - a moment is a `wire.time/Instant` and a calendar day a `wire.time/Day`,
   built on Closure's `goog.date`; both print as the ISO text they came as
 - a decimal is its text, or exact with big.js: require `wire.big` (and add
