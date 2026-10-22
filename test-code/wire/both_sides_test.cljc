@@ -3,6 +3,7 @@
    say the same."
   (:require
    [clojure.test :refer [deftest is testing]]
+   [clojure.walk]
    [malli.core :as m]
    [malli.generator :as mg]
    [wire.api :as wire]
@@ -123,3 +124,45 @@
           back      (decode (wire/turn-json-text-into-data (wire/turn-data-into-json-text json-data)))]
       (is (fits-closed? back) (pr-str value))
       (is (= (wire/turn-data-into-json-text json-data) (wire/turn-data-into-json-text (encode back))) (pr-str value)))))
+
+(defn- malli-way-in
+  "The way in by malli alone, as before the walk."
+  [{:keys [decode fits-closed? explain-closed]} json-data]
+  (let [shaped-data (decode json-data)]
+    (if (fits-closed? shaped-data)
+      {:shaped-data shaped-data}
+      {:errors (#'wire.api/humanize (explain-closed shaped-data))})))
+
+(defn- malli-way-out
+  "The way out by malli alone, as before the walk."
+  [{:keys [encode decode fits-closed? explain-closed]} shaped-data]
+  (let [json-data (encode shaped-data)]
+    (if (or (fits-closed? shaped-data) (fits-closed? (decode json-data)))
+      {:json-data json-data}
+      {:errors (#'wire.api/humanize (explain-closed (decode json-data)))})))
+
+(defn- break
+  "Ways JSON data or shaped data can be wrong: a key too many, a key gone,
+   text where numbers are, numbers where text is, a list for a vector."
+  [x]
+  (let [everywhere (fn [f] (clojure.walk/postwalk f x))]
+    [(if (map? x) (assoc x :wire/extra 1) [x])
+     (if (and (map? x) (seq x)) (dissoc x (first (keys x))) nil)
+     (everywhere #(if (number? %) "7" %))
+     (everywhere #(if (string? %) 7 %))
+     (everywhere #(if (and (vector? %) (not (map-entry? %))) (seq %) %))
+     (everywhere #(if (map? %) (assoc % :wire/extra 1) %))]))
+
+(deftest the-one-walk-answers-as-malli-does
+  (doseq [shape generated-shapes
+          :let  [tools (#'wire.api/find-tools-for-shape shape)]
+          value (mg/sample (m/schema shape {:registry @#'wire.api/registry}) {:size #?(:clj 100 :cljs 30) :seed 7})
+          data  (cons value (break value))]
+    (is (= (malli-way-out tools data) (way-out shape data)) (pr-str [:out shape data]))
+    (let [json-data ((:encode tools) data)
+          ;; shaped data compared by the text it writes: big.js values are
+          ;; = only to themselves
+          comparable (fn [{:keys [shaped-data errors]}]
+                       (if errors errors (wire/turn-data-into-json-text ((:encode tools) shaped-data))))]
+      (doseq [json (cons json-data (break json-data))]
+        (is (= (comparable (malli-way-in tools json)) (comparable (way-in shape json))) (pr-str [:in shape json]))))))

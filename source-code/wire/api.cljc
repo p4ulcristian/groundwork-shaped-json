@@ -25,7 +25,8 @@
    [malli.util :as mu]
    [wire.json :as json]
    [wire.time :as time]
-   [wire.types :as types]))
+   [wire.types :as types]
+   [wire.walk :as walk]))
 
 (def ^:private decimal-schema
   (m/-simple-schema {:type            :decimal
@@ -140,15 +141,17 @@
 ;; A shape's tools, made once
 
 (defn- make-tools-from-shape
-  "What a shape is made into: the decoder and encoder, the open check that
-   says why any data doesn't fit, and the checks of both ways, with every
-   map closed."
+  "What a shape is made into: the one walk of each way, the decoder and
+   encoder, the open check that says why any data doesn't fit, and the
+   checks of both ways, with every map closed."
   [shape]
   (let [options {:registry registry}
         schema  (m/schema shape options)
         open    (make-ready schema false options)
         closed  (make-ready schema true options)]
-    {:decode         (m/decoder closed transformer)
+    {:walk-in        (walk/make-walk closed transformer :in)
+     :walk-out       (walk/make-walk closed transformer :out)
+     :decode         (m/decoder closed transformer)
      :encode         (m/encoder closed transformer)
      :explain        (m/explainer open)
      :fits-closed?   (m/validator closed)
@@ -176,13 +179,19 @@
 (defn turn-json-data-into-shaped-data-or-errors
   "JSON data turned into shaped data: {:shaped-data …} when it fits the
    shape with every map closed, or {:errors …} (readable, by key) when it
-   doesn't: a key the shape doesn't name never comes in."
+   doesn't: a key the shape doesn't name never comes in.
+
+   Decoded and checked in one walk; data the walk refuses goes through
+   malli's whole decoder and check, which say why."
   [shape json-data]
-  (let [{:keys [decode fits-closed? explain-closed]} (find-tools-for-shape shape)
-        shaped-data                                  (decode json-data)]
-    (if (fits-closed? shaped-data)
-      {:shaped-data shaped-data}
-      {:errors (humanize (explain-closed shaped-data))})))
+  (let [{:keys [walk-in decode fits-closed? explain-closed]} (find-tools-for-shape shape)
+        walked                                               (walk-in json-data)]
+    (if-not (walk/refused? walked)
+      {:shaped-data walked}
+      (let [shaped-data (decode json-data)]
+        (if (fits-closed? shaped-data)
+          {:shaped-data shaped-data}
+          {:errors (humanize (explain-closed shaped-data))})))))
 
 (defn turn-shaped-data-into-json-data-or-errors
   "Shaped data turned into JSON data, ids, decimals and dates as text:
@@ -192,16 +201,20 @@
    and a value that only goes out right passes (a js/Date for a moment in
    the browser, a java.sql.Timestamp on the JVM).
 
-   Shaped data that fits goes out without being read back: every value of
-   wire's types that fits writes text the other side reads as it (a moment
-   and a day fit only in the years the grammar writes). Data that doesn't
-   fit is read back as the other side will read it, and checked."
+   Shaped data that fits is checked and encoded in one walk and goes out
+   without being read back: every value of wire's types that fits writes
+   text the other side reads as it (a moment and a day fit only in the
+   years the grammar writes). Data that doesn't fit is read back as the
+   other side will read it, and checked."
   [shape shaped-data]
-  (let [{:keys [encode decode fits-closed? explain-closed]} (find-tools-for-shape shape)
-        json-data                                           (encode shaped-data)]
-    (if (or (fits-closed? shaped-data) (fits-closed? (decode json-data)))
-      {:json-data json-data}
-      {:errors (humanize (explain-closed (decode json-data)))})))
+  (let [{:keys [walk-out encode decode explain-closed fits-closed?]} (find-tools-for-shape shape)
+        walked                                                       (walk-out shaped-data)]
+    (if-not (walk/refused? walked)
+      {:json-data walked}
+      (let [json-data (encode shaped-data)]
+        (if (or (fits-closed? shaped-data) (fits-closed? (decode json-data)))
+          {:json-data json-data}
+          {:errors (humanize (explain-closed (decode json-data)))})))))
 
 (defn find-errors-in-data-for-shape
   "Why data doesn't fit a shape, readable, by key; nil when it fits."

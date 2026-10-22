@@ -17,3 +17,4 @@ The first six were made while wire was a library inside Groundwork, a Clojure fr
 - [Moments and days have one grammar on both sides](2026-10-22-moments-and-days-have-one-grammar.md)
 - [The kept tools are forgotten past a thousand shapes](2026-10-22-the-kept-tools-are-forgotten-past-a-thousand.md)
 - [Data that fits goes out without being read back](2026-10-22-data-that-fits-goes-out-without-being-read-back.md)
+- [Each way is one walk, and malli says why](2026-10-22-each-way-is-one-walk.md)

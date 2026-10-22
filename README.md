@@ -8,7 +8,7 @@ for JavaScript travel as text and come back as their real types. Both sides
 read the same JSON and refuse the same.
 
 ```clojure
-io.github.p4ulcristian/wire {:git/tag "v0.1.3" :git/sha "…"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.1.3
+io.github.p4ulcristian/wire {:git/tag "v0.1.4" :git/sha "…"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.1.4
 ```
 
 Needs only malli and jsonista. One namespace for both languages:
@@ -78,16 +78,17 @@ Needs only malli and jsonista. One namespace for both languages:
 
 | | JVM | browser (node, advanced build) |
 |---|---|---|
-| way out, shaped data → JSON data | 2.8 ms | 7.5 ms |
-| JSON data → text | 1.5 ms | 3.1 ms |
-| text → JSON data | 3.1 ms | 4.1 ms |
-| way in, JSON data → shaped data | 3.2 ms | 8.9 ms |
-| the whole round | 11.4 ms | 26.1 ms |
-| plain JSON, parse + write | | 2.9 ms |
+| way out, shaped data → JSON data | 2.7 ms | 5.3 ms |
+| JSON data → text | 1.5 ms | 2.9 ms |
+| text → JSON data | 3.3 ms | 3.9 ms |
+| way in, JSON data → shaped data | 3.2 ms | 6.5 ms |
+| the whole round | 11.9 ms | 20.1 ms |
+| plain JSON, parse + write | | 3.0 ms |
 
-Data that fits its shape goes out without being read back; moments and
-days are read by position; the browser turns JSON into data and back in
-one walk. Most of what is left is malli's own work and Clojure's maps.
+Each way is one walk that decodes (or encodes) and checks together; data
+that fits goes out without being read back; moments and days are read by
+position; the browser turns JSON into data and back in one walk. Most of
+what is left is building Clojure's maps.
 
 ## Tests
 

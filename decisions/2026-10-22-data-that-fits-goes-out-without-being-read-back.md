@@ -1,5 +1,7 @@
 # Data that fits goes out without being read back
 
+> Added to by [Each way is one walk, and malli says why](2026-10-22-each-way-is-one-walk.md) (2026-10-22).
+
 > Changes in part [wire is for the app's edges, in five functions](2026-10-22-wire-is-for-the-apps-edges.md): the way out reads back only data that doesn't fit.
 
 **Decision:** `turn-shaped-data-into-json-data-or-errors` checks the shaped data against the closed shape first. Data that fits goes out as its JSON data at once. Only data that doesn't fit is read back as the other side will read it, and checked: a value that goes out right (a `js/Date`, a `java.sql.Timestamp`) passes, anything else is refused as before.
