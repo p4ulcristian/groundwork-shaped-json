@@ -1,4 +1,4 @@
-(ns wire.json
+(ns groundwork-shaped-json.json
   "JSON text on the JVM, through jsonista. Keyword keys keep their
    namespace: :post/title travels as \"post/title\" and comes back as
    :post/title. Jackson's limits on what it reads and writes are the

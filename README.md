@@ -1,4 +1,4 @@
-# wire
+# groundwork-shaped-json
 
 Data that crosses an edge comes back as what it was, on the JVM and in the
 browser. JSON knows only text, numbers, true/false, lists and maps; a
@@ -8,22 +8,22 @@ for JavaScript travel as text and come back as their real types. Both sides
 read the same JSON and refuse the same.
 
 ```clojure
-io.github.p4ulcristian/wire {:git/tag "v0.2.1" :git/sha "900a84d"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.2.0
+io.github.p4ulcristian/groundwork-shaped-json {:git/tag "v0.2.1" :git/sha "900a84d"}   ; the sha: git ls-remote https://github.com/p4ulcristian/groundwork-shaped-json v0.2.0
 ```
 
 Needs only malli and jsonista. One namespace for both languages:
-`wire.api` is a `.cljc`; `wire.json`, `wire.time` and `wire.types` are a
+`groundwork-shaped-json.api` is a `.cljc`; `groundwork-shaped-json.json`, `groundwork-shaped-json.time` and `groundwork-shaped-json.types` are a
 `.clj` and a `.cljs` each, and each language loads its own.
 
-## The api: a wire, and five functions
+## The api: a shaper, and five functions
 
-An app makes a wire once from its settings, every value written out (see
+An app makes a shaper once from its settings, every value written out (see
 [the settings](decisions/2026-10-22-every-value-that-sets-behaviour-is-a-setting.md)),
 and every function takes it first.
 
 | function | does |
 |---|---|
-| `make-wire-from-settings` | settings → a wire; settings that don't fit `settings-shape` throw `:wire/bad-settings` |
+| `make-shaper-from-settings` | settings → a shaper; settings that don't fit `settings-shape` throw `:groundwork-shaped-json/bad-settings` |
 | `turn-json-text-into-data` | JSON text → JSON data; `"post/title"` becomes `:post/title` |
 | `turn-data-into-json-text` | JSON data → JSON text; keys keep their namespace |
 | `turn-json-data-into-shaped-data-or-errors` | the way in: `{:shaped-data …}` or `{:errors …}`, checked with every map closed: a key the shape doesn't name never comes in |
@@ -31,9 +31,9 @@ and every function takes it first.
 | `find-errors-in-data-for-shape` | why data doesn't fit a shape; nil when it fits |
 
 ```clojure
-(require '[wire.api :as wire])
+(require '[groundwork-shaped-json.api :as shaped-json])
 
-(def wire (wire/make-wire-from-settings
+(def shaper (shaped-json/make-shaper-from-settings
            {:most-shapes-kept 1000
             :json-limits      {:max-nesting-depth 1000 :max-number-length 1000 :max-string-length 20000000
                                :max-name-length 50000 :max-document-length nil :max-token-count nil
@@ -41,18 +41,18 @@ and every function takes it first.
 
 (def order [:map [:order/id :uuid] [:order/total :decimal] [:order/day :time/local-date]])
 
-(wire/turn-shaped-data-into-json-data-or-errors wire order {:order/id    #uuid "1d000000-0000-4000-8000-000000000001"
+(shaped-json/turn-shaped-data-into-json-data-or-errors shaper order {:order/id    #uuid "1d000000-0000-4000-8000-000000000001"
                                                       :order/total 120.50M
                                                       :order/day   (java.time.LocalDate/parse "2026-11-15")})
 ;=> {:json-data #:order{:id "1d000000-0000-4000-8000-000000000001" :total "120.50" :day "2026-11-15"}}
 
-(wire/turn-shaped-data-into-json-data-or-errors wire order {:order/id #uuid "1d000000-0000-4000-8000-000000000001"
+(shaped-json/turn-shaped-data-into-json-data-or-errors shaper order {:order/id #uuid "1d000000-0000-4000-8000-000000000001"
                                                       :order/total 120.50M
                                                       :order/day (java.time.LocalDate/parse "2026-11-15")
                                                       :user/password-hash "x"})
 ;=> {:errors {:user/password-hash ["disallowed key"]}}
 
-(wire/turn-json-data-into-shaped-data-or-errors wire order (wire/turn-json-text-into-data wire json-text))
+(shaped-json/turn-json-data-into-shaped-data-or-errors shaper order (shaped-json/turn-json-text-into-data shaper json-text))
 ;=> {:shaped-data #:order{:id #uuid "1d000000-…" :total 120.50M :day #object[java.time.LocalDate "2026-11-15"]}}
 ```
 
@@ -83,10 +83,10 @@ and every function takes it first.
 - a whole number is a number within JavaScript's safe range and its text
   beyond it (to the ends of a JVM long); a number beyond the range may
   have been rounded, so it doesn't fit `:int`
-- a moment is a `wire.time/Instant` and a calendar day a `wire.time/Day`,
+- a moment is a `groundwork-shaped-json.time/Instant` and a calendar day a `groundwork-shaped-json.time/Day`,
   built on Closure's `goog.date`; both print as the ISO text they came as
 - a decimal is its text (`:exact-decimals nil`), or exact with big.js
-  (`:exact-decimals wire.big/big`, and `big.js` in the app's package.json)
+  (`:exact-decimals groundwork-shaped-json.big/big`, and `big.js` in the app's package.json)
 
 ## Speed
 

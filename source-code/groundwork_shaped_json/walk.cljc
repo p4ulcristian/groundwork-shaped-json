@@ -1,5 +1,5 @@
-(ns wire.walk
-  "One walk per shape and way, inside wire. The way in decodes and checks
+(ns groundwork-shaped-json.walk
+  "One walk per shape and way, inside groundwork-shaped-json. The way in decodes and checks
    in the same pass; the way out checks and encodes in the same pass. A
    walk goes through maps, vectors, tuples, :maybe, :json, tagged unions
    and refs itself, and leaves every other part of a shape (a value, a set, a

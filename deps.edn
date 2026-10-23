@@ -1,5 +1,5 @@
-;; wire: data that crosses an edge comes back as what it was.
-;; One tree for both languages: source-code/wire/, one namespace each.
+;; groundwork-shaped-json: data that crosses an edge comes back as what it was.
+;; One tree for both languages: source-code/groundwork_shaped_json/, one namespace each.
 {:paths ["source-code"]
 
  :deps

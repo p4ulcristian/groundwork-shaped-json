@@ -1,4 +1,4 @@
-(ns wire.json
+(ns groundwork-shaped-json.json
   "JSON text in the browser, as the JVM writes and reads it. Keyword keys
    keep their namespace: :post/title travels as \"post/title\" and comes back
    as :post/title (the namespace ends at the first slash, as Clojure's

@@ -1,7 +1,7 @@
-(ns wire.time
+(ns groundwork-shaped-json.time
   "Times in the browser. A moment is an Instant, a goog.date.UtcDateTime; a
    calendar day is a Day, a goog.date.Date (no time, no zone: its year, month
-   and day are what the wire said, wherever the browser is). Both print, and
+   and day are what the shaper said, wherever the browser is). Both print, and
    go to JSON, as the ISO text they came as: \"2026-10-12T10:00:00Z\",
    \"2026-11-15\" (an instant's fraction in 3, 6 or 9 digits, as java.time
    and js-joda print it). JavaScript keeps milliseconds; an Instant keeps the
@@ -257,10 +257,10 @@
 (defn parse-date
   "A Day from its ISO text, \"2026-11-15\". Text that isn't one throws."
   [s]
-  (or (read-day s) (throw (ex-info (str "Not a day: " s) {:type :wire/not-a-day :text s}))))
+  (or (read-day s) (throw (ex-info (str "Not a day: " s) {:type :groundwork-shaped-json/not-a-day :text s}))))
 
 (defn parse-instant
   "An Instant from its ISO text, \"2026-10-12T10:00:00Z\". Text that isn't one
    throws."
   [s]
-  (or (read-instant s) (throw (ex-info (str "Not a moment: " s) {:type :wire/not-a-moment :text s}))))
+  (or (read-instant s) (throw (ex-info (str "Not a moment: " s) {:type :groundwork-shaped-json/not-a-moment :text s}))))

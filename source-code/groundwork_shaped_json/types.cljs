@@ -1,7 +1,7 @@
-(ns wire.types
+(ns groundwork-shaped-json.types
   "Decimals, whole numbers and ids in the browser. A decimal is its text,
    \"12.30\", or an exact value when the settings give an exact type
-   (wire.big's big.js). A whole number is a number within JavaScript's safe
+   (groundwork-shaped-json.big's big.js). A whole number is a number within JavaScript's safe
    range and its text beyond it. An id is its text."
   (:require
    [malli.core :as m]
@@ -15,7 +15,7 @@
 (defn find-precision-and-scale
   "A :decimal's {:precision :scale}, both whole numbers, 0 <= scale <=
    precision, precision at least 1; nil when it has neither. One without
-   the other, or another property, throws :wire/bad-shape."
+   the other, or another property, throws :groundwork-shaped-json/bad-shape."
   [properties]
   (let [{:keys [precision scale]} properties]
     (cond
@@ -23,7 +23,7 @@
       (and (= #{:precision :scale} (set (keys properties))) (int? precision) (int? scale) (<= 0 scale precision) (pos? precision))
       {:precision precision :scale scale}
       :else (throw (ex-info (str "A :decimal's properties are {:precision p :scale s}, 0 <= s <= p: " (pr-str properties))
-                            {:type :wire/bad-shape :properties properties})))))
+                            {:type :groundwork-shaped-json/bad-shape :properties properties})))))
 
 (defn- fits-digits?
   "Whether decimal text has at most scale digits after its point (trailing
@@ -37,7 +37,7 @@
 
 (defn make-decimal-schema
   "The browser's :decimal, by the settings' :exact-decimals: its text, or,
-   given an exact type ({:decimal? :read :text}, wire.big's big.js), that
+   given an exact type ({:decimal? :read :text}, groundwork-shaped-json.big's big.js), that
    type's value. With {:precision p :scale s}, as Postgres's numeric(p,s):
    at most s digits after the point and p - s before it."
   [{:keys [exact-decimals]}]
@@ -135,7 +135,7 @@
 (def id-text-schema
   "An id in the browser: text shaped like a UUID. Its type isn't :uuid, so
    malli's JSON transformer leaves the text alone."
-  (m/-simple-schema {:type            :wire/id-text
+  (m/-simple-schema {:type            :groundwork-shaped-json/id-text
                      :pred            id-text?
                      :type-properties {:gen/schema [:vector {:min 32 :max 32} [:int {:min 0 :max 15}]]
                                        :gen/fmap   (fn [digits]
@@ -147,7 +147,7 @@
   "In the browser :uuid is an id as text, :int a whole number as int-schema
    says, and :double a finite number."
   {:uuid         id-text-schema
-   :wire/id-text id-text-schema   ; the form :uuid is made into
+   :groundwork-shaped-json/id-text id-text-schema   ; the form :uuid is made into
    :int          int-schema
    :double       double-schema})
 
@@ -160,5 +160,5 @@
                  (id-text? x)                                      (.toLowerCase x)
                  :else                                             x))]
     (mt/transformer {:name     :id-text
-                     :decoders {:wire/id-text text}
-                     :encoders {:wire/id-text text}})))
+                     :decoders {:groundwork-shaped-json/id-text text}
+                     :encoders {:groundwork-shaped-json/id-text text}})))

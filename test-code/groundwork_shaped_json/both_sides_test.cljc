@@ -1,4 +1,4 @@
-(ns wire.both-sides-test
+(ns groundwork-shaped-json.both-sides-test
   "One file, run on the JVM and in the browser: both sides take, refuse and
    say the same."
   (:require
@@ -6,15 +6,15 @@
    [clojure.walk]
    [malli.core :as m]
    [malli.generator :as mg]
-   [wire.api :as wire]
-   [wire.test-wires :refer [test-wire]]
-   [wire.time :as time]))
+   [groundwork-shaped-json.api :as shaped-json]
+   [groundwork-shaped-json.test-shapers :refer [test-shaper]]
+   [groundwork-shaped-json.time :as time]))
 
 (def id #uuid "7f3c1e2a-0000-4000-8000-000000000001")
 
-(defn- way-out [shape shaped-data] (wire/turn-shaped-data-into-json-data-or-errors test-wire shape shaped-data))
-(defn- way-in [shape json-data] (wire/turn-json-data-into-shaped-data-or-errors test-wire shape json-data))
-(defn- way-in-from-text [shape text] (way-in shape (wire/turn-json-text-into-data test-wire text)))
+(defn- way-out [shape shaped-data] (shaped-json/turn-shaped-data-into-json-data-or-errors test-shaper shape shaped-data))
+(defn- way-in [shape json-data] (shaped-json/turn-json-data-into-shaped-data-or-errors test-shaper shape json-data))
+(defn- way-in-from-text [shape text] (way-in shape (shaped-json/turn-json-text-into-data test-shaper text)))
 
 (deftest maps-a-registry-keeps-are-closed-too
   (let [rows [:schema {:registry {::row [:map [:shop/name :string]]}} [:vector ::row]]]
@@ -91,7 +91,7 @@
     (is (= {:errors ["should be a decimal with at most 8 digits before the point and 2 after"]} (way-in money "twelve")))
     (is (= {:errors ["should be a decimal"]} (way-in :decimal "twelve")) "without digits, as before"))
   (doseq [properties [{:precision 10} {:scale 2} {:precision 2 :scale 3} {:precision 10 :scale 2 :max 5}]]
-    (is (= :wire/bad-shape
+    (is (= :groundwork-shaped-json/bad-shape
            (:type (ex-data (try (way-in [:decimal properties] "1") (catch #?(:clj Exception :cljs :default) e e)))))
         (pr-str properties))))
 
@@ -117,14 +117,14 @@
     (is (contains? (way-in-from-text shape "{\"9223372036854775808\":\"a\"}") :errors))))
 
 (deftest json-text-the-same-on-both-sides
-  (is (= "{\"7f3c1e2a-0000-4000-8000-000000000001\":1}" (wire/turn-data-into-json-text test-wire {id 1}))
+  (is (= "{\"7f3c1e2a-0000-4000-8000-000000000001\":1}" (shaped-json/turn-data-into-json-text test-shaper {id 1}))
       "a UUID key is its text")
-  (is (= ["a" "b/c"] ((juxt namespace name) (key (first (wire/turn-json-text-into-data test-wire "{\"a/b/c\":1}")))))
+  (is (= ["a" "b/c"] ((juxt namespace name) (key (first (shaped-json/turn-json-text-into-data test-shaper "{\"a/b/c\":1}")))))
       "the namespace ends at the first slash")
   (is (= {:order/lines [1 2] :order/tags ["a"] :order/kind "order/rush" :order/note nil}
-         (wire/turn-json-text-into-data test-wire (wire/turn-data-into-json-text test-wire {:order/lines '(1 2) :order/tags #{"a"} :order/kind :order/rush :order/note nil}))))
+         (shaped-json/turn-json-text-into-data test-shaper (shaped-json/turn-data-into-json-text test-shaper {:order/lines '(1 2) :order/tags #{"a"} :order/kind :order/rush :order/note nil}))))
   (doseq [text ["{\"a\":1}{\"a\":2}" "[1,2] garbage"]]
-    (is (thrown? #?(:clj Exception :cljs js/Error) (wire/turn-json-text-into-data test-wire text)) "text after the JSON is refused")))
+    (is (thrown? #?(:clj Exception :cljs js/Error) (shaped-json/turn-json-text-into-data test-shaper text)) "text after the JSON is refused")))
 
 (def ^:private generated-shapes
   [[:map [:order/id :uuid] [:order/total :decimal] [:order/day :time/local-date] [:order/at :time/instant]
@@ -143,13 +143,13 @@
   ;; the way out sends data that fits without reading it back: generated
   ;; data of every kind must read back fitting, and write the same text again
   (doseq [shape generated-shapes
-          :let  [{:keys [encode decode fits-closed?]} (#'wire.api/find-tools-for-shape test-wire shape)]
-          value (mg/sample (m/schema shape {:registry (:registry test-wire)}) {:size #?(:clj 200 :cljs 50) :seed 42})]
+          :let  [{:keys [encode decode fits-closed?]} (#'groundwork-shaped-json.api/find-tools-for-shape test-shaper shape)]
+          value (mg/sample (m/schema shape {:registry (:registry test-shaper)}) {:size #?(:clj 200 :cljs 50) :seed 42})]
     (is (fits-closed? value) (pr-str shape))
     (let [json-data (encode value)
-          back      (decode (wire/turn-json-text-into-data test-wire (wire/turn-data-into-json-text test-wire json-data)))]
+          back      (decode (shaped-json/turn-json-text-into-data test-shaper (shaped-json/turn-data-into-json-text test-shaper json-data)))]
       (is (fits-closed? back) (pr-str value))
-      (is (= (wire/turn-data-into-json-text test-wire json-data) (wire/turn-data-into-json-text test-wire (encode back))) (pr-str value)))))
+      (is (= (shaped-json/turn-data-into-json-text test-shaper json-data) (shaped-json/turn-data-into-json-text test-shaper (encode back))) (pr-str value)))))
 
 (defn- malli-way-in
   "The way in by malli alone, as before the walk."
@@ -157,7 +157,7 @@
   (let [shaped-data (decode json-data)]
     (if (fits-closed? shaped-data)
       {:shaped-data shaped-data}
-      {:errors (#'wire.api/humanize (explain-closed shaped-data))})))
+      {:errors (#'groundwork-shaped-json.api/humanize (explain-closed shaped-data))})))
 
 (defn- malli-way-out
   "The way out by malli alone, as before the walk."
@@ -165,39 +165,39 @@
   (let [json-data (encode shaped-data)]
     (if (or (fits-closed? shaped-data) (fits-closed? (decode json-data)))
       {:json-data json-data}
-      {:errors (#'wire.api/humanize (explain-closed (decode json-data)))})))
+      {:errors (#'groundwork-shaped-json.api/humanize (explain-closed (decode json-data)))})))
 
 (defn- break
   "Ways JSON data or shaped data can be wrong: a key too many, a key gone,
    text where numbers are, numbers where text is, a list for a vector."
   [x]
   (let [everywhere (fn [f] (clojure.walk/postwalk f x))]
-    [(if (map? x) (assoc x :wire/extra 1) [x])
+    [(if (map? x) (assoc x :groundwork-shaped-json/extra 1) [x])
      (if (and (map? x) (seq x)) (dissoc x (first (keys x))) nil)
      (everywhere #(if (number? %) "7" %))
      (everywhere #(if (string? %) 7 %))
      (everywhere #(if (and (vector? %) (not (map-entry? %))) (seq %) %))
-     (everywhere #(if (map? %) (assoc % :wire/extra 1) %))]))
+     (everywhere #(if (map? %) (assoc % :groundwork-shaped-json/extra 1) %))]))
 
 (deftest the-one-walk-answers-as-malli-does
   (doseq [shape generated-shapes
-          :let  [tools (#'wire.api/find-tools-for-shape test-wire shape)]
-          value (mg/sample (m/schema shape {:registry (:registry test-wire)}) {:size #?(:clj 100 :cljs 30) :seed 7})
+          :let  [tools (#'groundwork-shaped-json.api/find-tools-for-shape test-shaper shape)]
+          value (mg/sample (m/schema shape {:registry (:registry test-shaper)}) {:size #?(:clj 100 :cljs 30) :seed 7})
           data  (cons value (break value))]
     (is (= (malli-way-out tools data) (way-out shape data)) (pr-str [:out shape data]))
     (let [json-data ((:encode tools) data)
           ;; shaped data compared by the text it writes: big.js values are
           ;; = only to themselves
           comparable (fn [{:keys [shaped-data errors]}]
-                       (if errors errors (wire/turn-data-into-json-text test-wire ((:encode tools) shaped-data))))]
+                       (if errors errors (shaped-json/turn-data-into-json-text test-shaper ((:encode tools) shaped-data))))]
       (doseq [json (cons json-data (break json-data))]
         (is (= (comparable (malli-way-in tools json)) (comparable (way-in shape json))) (pr-str [:in shape json]))))))
 
 (deftest settings-are-written-out
-  (is (= :wire/bad-settings
-         (:type (ex-data (try (wire/make-wire-from-settings {:most-shapes-kept 1000})
+  (is (= :groundwork-shaped-json/bad-settings
+         (:type (ex-data (try (shaped-json/make-shaper-from-settings {:most-shapes-kept 1000})
                               (catch #?(:clj Exception :cljs :default) e e)))))
       "a setting left out is refused")
-  (let [errors (:errors (ex-data (try (wire/make-wire-from-settings (assoc wire.test-wires/settings :most-shapes-kept 0 :cache-everything true))
+  (let [errors (:errors (ex-data (try (shaped-json/make-shaper-from-settings (assoc groundwork-shaped-json.test-shapers/settings :most-shapes-kept 0 :cache-everything true))
                                       (catch #?(:clj Exception :cljs :default) e e))))]
     (is (= #{:most-shapes-kept :cache-everything} (set (keys errors))) "every problem, by key")))

@@ -1,4 +1,4 @@
-(ns wire.api
+(ns groundwork-shaped-json.api
   "How shaped data travels as text and comes back as what it was, the same
    rules on the JVM and in the browser.
 
@@ -8,16 +8,16 @@
    Keys like :post/title travel as \"post/title\". A date, a decimal and a
    number too big for JavaScript travel as text and come back as what they
    are: on the JVM java.time, BigDecimal and real UUIDs; in the browser an
-   Instant and a Day (wire.time), a decimal's text or big.js (wire.big),
+   Instant and a Day (groundwork-shaped-json.time), a decimal's text or big.js (groundwork-shaped-json.big),
    an id as text, and a whole number beyond JavaScript's safe range as its
    text. Money travels as whole cents, an :int. Both ways check the shape
    with every map closed, maps a shape keeps in a registry too: a key it
    doesn't name neither leaves nor comes in.
 
-   Every function takes a wire first, made by make-wire-from-settings from
-   settings that write out every value that sets how wire behaves.
+   Every function takes a shaper first, made by make-shaper-from-settings from
+   settings that write out every value that sets how groundwork-shaped-json behaves.
 
-   One file for both languages: wire.json, wire.time and wire.types are a
+   One file for both languages: groundwork-shaped-json.json, groundwork-shaped-json.time and groundwork-shaped-json.types are a
    .clj and a .cljs each, and each language loads its own; here only the
    settings differ between the two."
   (:require
@@ -26,21 +26,21 @@
    [malli.registry :as mr]
    [malli.transform :as mt]
    [malli.util :as mu]
-   [wire.json :as json]
-   [wire.time :as time]
-   [wire.types :as types]
-   [wire.walk :as walk]))
+   [groundwork-shaped-json.json :as json]
+   [groundwork-shaped-json.time :as time]
+   [groundwork-shaped-json.types :as types]
+   [groundwork-shaped-json.walk :as walk]))
 
 ;; ---------------------------------------------------------------------------
-;; The settings, and a wire made from them
+;; The settings, and a shaper made from them
 
 (def settings-shape
-  "What a wire is made from, every key written out. On both sides:
+  "What a shaper is made from, every key written out. On both sides:
    :most-shapes-kept, how many shapes' tools are kept before all are
    forgotten and made again as used. On the JVM: :json-limits, Jackson's
    limits on the text it reads and writes. In the browser: :most-keys-kept,
    how many JSON keys' keywords are kept the same way, and
-   :exact-decimals, the exact type a :decimal is held as (wire.big/big),
+   :exact-decimals, the exact type a :decimal is held as (groundwork-shaped-json.big/big),
    or nil to keep its text."
   [:map {:closed true}
    [:most-shapes-kept [:int {:min 1}]]
@@ -82,14 +82,14 @@
                                    :encoders {:int types/int-to-wire}})
                   types/id-transformer])))
 
-(defn make-wire-from-settings
-  "A wire: what the other functions take first, made from settings that fit
-   settings-shape. Settings that don't throw :wire/bad-settings, with every
+(defn make-shaper-from-settings
+  "A shaper: what the other functions take first, made from settings that fit
+   settings-shape. Settings that don't throw :groundwork-shaped-json/bad-settings, with every
    problem by key. It holds each shape's tools as they are made, and in the
    browser each JSON key's keyword: an app makes one and keeps it."
   [settings]
   (when-let [errors (me/humanize (m/explain settings-shape settings))]
-    (throw (ex-info "wire's settings don't fit settings-shape" {:type :wire/bad-settings :errors errors})))
+    (throw (ex-info "groundwork-shaped-json's settings don't fit settings-shape" {:type :groundwork-shaped-json/bad-settings :errors errors})))
   {:settings       settings
    :registry       (make-registry settings)
    :transformer    (make-transformer settings)
@@ -126,7 +126,7 @@
                                                     " digits before the point and " scale " after")
                                                "should be a decimal"))}}
           :uuid            {:error/message {:en "should be an id"}}
-          :wire/id-text    {:error/message {:en "should be an id"}}
+          :groundwork-shaped-json/id-text    {:error/message {:en "should be an id"}}
           :time/instant    (error-text-by-kind time/instant-value? "should be a moment, like 2026-10-12T10:00:00Z")
           :time/local-date (error-text-by-kind time/day-value? "should be a day, like 2026-11-15")}))
 
@@ -205,9 +205,9 @@
   "A shape's tools, made the first time it is used and kept; past the
    settings' :most-shapes-kept (more than an app has: one is made on every
    call), all are forgotten and made again as used."
-  [{:keys [settings tools-by-shape] :as wire} shape]
+  [{:keys [settings tools-by-shape] :as shaper} shape]
   (or (get @tools-by-shape shape)
-      (let [tools (make-tools-from-shape wire shape)]
+      (let [tools (make-tools-from-shape shaper shape)]
         (swap! tools-by-shape #(assoc (if (< (count %) (:most-shapes-kept settings)) % {}) shape tools))
         tools)))
 
@@ -221,8 +221,8 @@
 
    Decoded and checked in one walk; data the walk refuses goes through
    malli's whole decoder and check, which say why."
-  [wire shape json-data]
-  (let [{:keys [walk-in decode fits-closed? explain-closed]} (find-tools-for-shape wire shape)
+  [shaper shape json-data]
+  (let [{:keys [walk-in decode fits-closed? explain-closed]} (find-tools-for-shape shaper shape)
         walked                                               (walk-in json-data)]
     (if-not (walk/refused? walked)
       {:shaped-data walked}
@@ -240,12 +240,12 @@
    the browser, a java.sql.Timestamp on the JVM).
 
    Shaped data that fits is checked and encoded in one walk and goes out
-   without being read back: every value of wire's types that fits writes
+   without being read back: every value of groundwork-shaped-json's types that fits writes
    text the other side reads as it (a moment and a day fit only in the
    years the grammar writes). Data that doesn't fit is read back as the
    other side will read it, and checked."
-  [wire shape shaped-data]
-  (let [{:keys [walk-out encode decode explain-closed fits-closed?]} (find-tools-for-shape wire shape)
+  [shaper shape shaped-data]
+  (let [{:keys [walk-out encode decode explain-closed fits-closed?]} (find-tools-for-shape shaper shape)
         walked                                                       (walk-out shaped-data)]
     (if-not (walk/refused? walked)
       {:json-data walked}
@@ -256,15 +256,15 @@
 
 (defn find-errors-in-data-for-shape
   "Why data doesn't fit a shape, readable, by key; nil when it fits."
-  [wire shape data]
-  (humanize ((:explain (find-tools-for-shape wire shape)) data)))
+  [shaper shape data]
+  (humanize ((:explain (find-tools-for-shape shaper shape)) data)))
 
 (defn turn-data-into-json-text
   "Data as JSON text; keyword keys keep their namespace: \"post/title\"."
-  [wire data]
-  (json/write-json (:json wire) data))
+  [shaper data]
+  (json/write-json (:json shaper) data))
 
 (defn turn-json-text-into-data
   "JSON text as data; keys become keywords, \"post/title\" → :post/title."
-  [wire json-text]
-  (json/read-json (:json wire) json-text))
+  [shaper json-text]
+  (json/read-json (:json shaper) json-text))

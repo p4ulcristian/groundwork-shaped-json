@@ -1,4 +1,4 @@
-(ns wire.time
+(ns groundwork-shaped-json.time
   "Times on the JVM: java.time, through malli's time schemas (every :time/…
    schema of malli's). A moment and a calendar day are read by the same
    grammar as in the browser, so both sides take and refuse the same text:
@@ -114,7 +114,7 @@
            (or (nil? max) (<= (compare x max) 0))))))
 
 (def schemas
-  "The :time/… schemas: malli's, with a moment and a day of wire's own,
+  "The :time/… schemas: malli's, with a moment and a day of groundwork-shaped-json's own,
    in the grammar's years."
   (merge (time/schemas)
          {:time/instant    (m/-simple-schema {:type            :time/instant
@@ -158,10 +158,10 @@
 (defn parse-date
   "A LocalDate from its ISO text, \"2026-11-15\". Text that isn't one throws."
   [s]
-  (or (read-day s) (throw (ex-info (str "Not a day: " s) {:type :wire/not-a-day :text s}))))
+  (or (read-day s) (throw (ex-info (str "Not a day: " s) {:type :groundwork-shaped-json/not-a-day :text s}))))
 
 (defn parse-instant
   "An Instant from its ISO text, \"2026-10-12T10:00:00Z\". Text that isn't one
    throws."
   [s]
-  (or (read-instant s) (throw (ex-info (str "Not a moment: " s) {:type :wire/not-a-moment :text s}))))
+  (or (read-instant s) (throw (ex-info (str "Not a moment: " s) {:type :groundwork-shaped-json/not-a-moment :text s}))))
