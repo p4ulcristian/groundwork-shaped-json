@@ -12,14 +12,41 @@
 (defn- decimal-text? [x]
   (and (string? x) (some? (re-matches decimal-text-pattern x))))
 
+(defn find-precision-and-scale
+  "A :decimal's {:precision :scale}, both whole numbers, 0 <= scale <=
+   precision, precision at least 1; nil when it has neither. One without
+   the other, or another property, throws :wire/bad-shape."
+  [properties]
+  (let [{:keys [precision scale]} properties]
+    (cond
+      (empty? properties) nil
+      (and (= #{:precision :scale} (set (keys properties))) (int? precision) (int? scale) (<= 0 scale precision) (pos? precision))
+      {:precision precision :scale scale}
+      :else (throw (ex-info (str "A :decimal's properties are {:precision p :scale s}, 0 <= s <= p: " (pr-str properties))
+                            {:type :wire/bad-shape :properties properties})))))
+
+(defn- fits-digits?
+  "Whether decimal text has at most scale digits after its point (trailing
+   zeros left out) and precision - scale before it (leading zeros left
+   out)."
+  [{:keys [precision scale]} text]
+  (let [[_ whole places] (re-matches #"^-?(\d+)(?:\.(\d+))?$" text)
+        whole            (.replace whole (js/RegExp. "^0+") "")
+        places           (.replace (or places "") (js/RegExp. "0+$") "")]
+    (and (<= (count places) scale) (<= (count whole) (- precision scale)))))
+
 (defn make-decimal-schema
   "The browser's :decimal, by the settings' :exact-decimals: its text, or,
    given an exact type ({:decimal? :read :text}, wire.big's big.js), that
-   type's value."
+   type's value. With {:precision p :scale s}, as Postgres's numeric(p,s):
+   at most s digits after the point and p - s before it."
   [{:keys [exact-decimals]}]
-  (let [{:keys [decimal? read]} exact-decimals]
+  (let [{:keys [decimal? read text]} exact-decimals]
     (m/-simple-schema {:type            :decimal
                        :pred            (if exact-decimals decimal? decimal-text?)
+                       :property-pred   (fn [properties]
+                                          (when-let [digits (find-precision-and-scale properties)]
+                                            #(fits-digits? digits (if exact-decimals (text %) %))))
                        :type-properties {:gen/schema :int
                                          :gen/fmap   (if exact-decimals #(read (str %)) str)}})))
 

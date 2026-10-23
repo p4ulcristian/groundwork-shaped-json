@@ -1,8 +1,8 @@
 (ns wire.walk
   "One walk per shape and way, inside wire. The way in decodes and checks
    in the same pass; the way out checks and encodes in the same pass. A
-   walk goes through maps, vectors, tuples, :maybe, tagged unions and refs
-   itself, and leaves every other part of a shape (a value, a set, a
+   walk goes through maps, vectors, tuples, :maybe, :json, tagged unions
+   and refs itself, and leaves every other part of a shape (a value, a set, a
    :map-of, an :or) to malli's own decoder, encoder and check for that
    part, so each value is made exactly as malli makes it.
 
@@ -132,6 +132,7 @@
     :vector              (make-vector-walk schema transformer way)
     :tuple               (make-tuple-walk schema transformer way)
     :maybe               (make-maybe-walk schema transformer way)
+    :json                (make-walk (first (m/children schema)) transformer way)
     :multi               (make-multi-walk schema transformer way)
     (:ref :schema ::m/schema) (make-ref-walk schema transformer way)
     :any                 identity

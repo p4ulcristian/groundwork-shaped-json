@@ -82,6 +82,31 @@
          (way-in [:map [:shop/id :uuid] [:order/total :decimal] [:order/cents :int] [:order/lines [:int {:max 10}]]]
                  {:shop/id "nope" :order/total "1E+3" :order/cents "42" :order/lines "9007199254740993"}))))
 
+(deftest a-decimal-says-its-digits
+  (let [money [:decimal {:precision 10 :scale 2}]]
+    (doseq [text ["12.30" "12345678.99" "-0.05" "0" "00012.300"]]
+      (is (contains? (way-in money text) :shaped-data) text))
+    (doseq [text ["12.345" "123456789.00" "-123456789"]]
+      (is (= {:errors ["should be a decimal with at most 8 digits before the point and 2 after"]} (way-in money text)) text))
+    (is (= {:errors ["should be a decimal with at most 8 digits before the point and 2 after"]} (way-in money "twelve")))
+    (is (= {:errors ["should be a decimal"]} (way-in :decimal "twelve")) "without digits, as before"))
+  (doseq [properties [{:precision 10} {:scale 2} {:precision 2 :scale 3} {:precision 10 :scale 2 :max 5}]]
+    (is (= :wire/bad-shape
+           (:type (ex-data (try (way-in [:decimal properties] "1") (catch #?(:clj Exception :cljs :default) e e)))))
+        (pr-str properties))))
+
+(deftest json-is-its-shape-both-ways
+  (let [slots [:map [:proposal/slots [:json [:vector [:map [:slot/day :time/local-date] [:slot/cents :int]]]]]]]
+    (is (= {:json-data {:proposal/slots [{:slot/day "2026-11-15" :slot/cents 500}]}}
+           (way-out slots {:proposal/slots [{:slot/day (time/parse-date "2026-11-15") :slot/cents 500}]})))
+    (is (= "2026-11-15"
+           (str (get-in (way-in-from-text slots "{\"proposal/slots\":[{\"slot/day\":\"2026-11-15\",\"slot/cents\":500}]}")
+                        [:shaped-data :proposal/slots 0 :slot/day]))))
+    (is (= {:errors {:proposal/slots [{:slot/secret ["disallowed key"]}]}}
+           (way-in slots {:proposal/slots [{:slot/day "2026-11-15" :slot/cents 500 :slot/secret 1}]}))
+        "its maps are closed too"))
+  (is (= {:shaped-data {"a" [1 "b" nil]}} (way-in [:json :any] {"a" [1 "b" nil]})) "[:json :any] takes any JSON"))
+
 (deftest map-keys-that-are-whole-numbers
   (let [shape [:map-of :int :string]]
     (is (= {:shaped-data {1 "a"}} (way-in-from-text shape "{\"1\":\"a\"}")))

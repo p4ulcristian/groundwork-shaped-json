@@ -48,15 +48,28 @@
        :cljs [[:most-keys-kept [:int {:min 1}]]
               [:exact-decimals [:maybe [:map {:closed true} [:decimal? fn?] [:read fn?] [:text fn?]]]]])])
 
+(def ^:private json-schema
+  "[:json shape]: a value a database keeps as JSON (Postgres's jsonb),
+   shaped as its one child says. It is that child both ways, every map in
+   it closed as anywhere: [:json [:vector [:map [:slot/day :time/local-date]]]];
+   [:json :any] for any JSON."
+  (m/-proxy-schema {:type :json
+                    :min  1
+                    :max  1
+                    :fn   (fn [_properties children options]
+                            (let [child (m/schema (first children) options)]
+                              [[child] [(m/form child)] child]))}))
+
 (defn- make-registry
   ;; the language's own :int, :double and (in the browser) :uuid, malli's
-  ;; own schemas, the language's :time/… schemas, and :decimal
+  ;; own schemas, the language's :time/… schemas, :decimal and :json
   [settings]
   (mr/composite-registry
    types/schemas
    (m/default-schemas)
    time/schemas
-   {:decimal (types/make-decimal-schema settings)}))
+   {:decimal (types/make-decimal-schema settings)
+    :json    json-schema}))
 
 (defn- make-transformer [settings]
   (apply mt/transformer
@@ -107,7 +120,11 @@
   (merge me/default-errors
          {:int             (error-text-by-kind types/int-value? "should be an integer")
           :double          (error-text-by-kind types/double-value? "should be a finite number")
-          :decimal         {:error/message {:en "should be a decimal"}}
+          :decimal         {:error/fn {:en (fn [{:keys [schema]} _]
+                                             (if-let [{:keys [precision scale]} (types/find-precision-and-scale (m/properties schema))]
+                                               (str "should be a decimal with at most " (- precision scale)
+                                                    " digits before the point and " scale " after")
+                                               "should be a decimal"))}}
           :uuid            {:error/message {:en "should be an id"}}
           :wire/id-text    {:error/message {:en "should be an id"}}
           :time/instant    (error-text-by-kind time/instant-value? "should be a moment, like 2026-10-12T10:00:00Z")

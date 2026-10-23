@@ -19,3 +19,4 @@ The first six were made while wire was a library inside groundwork, the Clojure 
 - [Data that fits goes out without being read back](2026-10-22-data-that-fits-goes-out-without-being-read-back.md)
 - [Each way is one walk, and malli says why](2026-10-22-each-way-is-one-walk.md)
 - [Every value that sets behaviour is a setting; no hidden defaults](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md)
+- [A database's JSON is [:json shape]; a decimal says its digits](2026-10-23-a-databases-json-and-a-decimals-digits-are-shapes.md)

@@ -12,6 +12,19 @@
 
 (def ^:private decimal-text-pattern #"^-?\d+(\.\d+)?$")
 
+(defn find-precision-and-scale
+  "A :decimal's {:precision :scale}, both whole numbers, 0 <= scale <=
+   precision, precision at least 1; nil when it has neither. One without
+   the other, or another property, throws :wire/bad-shape."
+  [properties]
+  (let [{:keys [precision scale]} properties]
+    (cond
+      (empty? properties) nil
+      (and (= #{:precision :scale} (set (keys properties))) (int? precision) (int? scale) (<= 0 scale precision) (pos? precision))
+      {:precision precision :scale scale}
+      :else (throw (ex-info (str "A :decimal's properties are {:precision p :scale s}, 0 <= s <= p: " (pr-str properties))
+                            {:type :wire/bad-shape :properties properties})))))
+
 (defn- decimal-from-wire
   "Plain decimal text, \"12.30\", becomes a BigDecimal; anything else, an
    exponent's \"1E+3\" too, stays as it came and fails :decimal."
@@ -23,11 +36,27 @@
 (defn- decimal-to-wire [x]
   (if (decimal? x) (.toPlainString ^BigDecimal x) x))
 
+(defn- count-whole-digits
+  "How many digits a decimal has before its point, leading zeros left out."
+  [^BigDecimal x]
+  (let [whole (.abs (.toBigInteger x))]
+    (if (zero? (.signum whole)) 0 (count (str whole)))))
+
+(defn- count-places
+  "How many digits a decimal has after its point, trailing zeros left out."
+  [^BigDecimal x]
+  (max 0 (.scale (.stripTrailingZeros x))))
+
 (defn make-decimal-schema
-  "The JVM's :decimal: a BigDecimal. The settings have nothing for it."
+  "The JVM's :decimal: a BigDecimal. With {:precision p :scale s}, as
+   Postgres's numeric(p,s): at most s digits after the point and p - s
+   before it. The settings have nothing for it."
   [_settings]
   (m/-simple-schema {:type            :decimal
                      :pred            decimal?
+                     :property-pred   (fn [properties]
+                                        (when-let [{:keys [precision scale]} (find-precision-and-scale properties)]
+                                          #(and (<= (count-places %) scale) (<= (count-whole-digits %) (- precision scale)))))
                      :type-properties {:gen/schema :int
                                        :gen/fmap   #(BigDecimal. (str % ".00"))}}))
 

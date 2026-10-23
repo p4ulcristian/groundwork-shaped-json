@@ -67,6 +67,11 @@ and every function takes it first.
   digits, `Z` or an offset up to ±18:00, upper-case `T` and `Z`, years
   0000 to 9999, no leap second; a day is `2026-11-15`
 - a `:double` is finite: JSON has no NaN or Infinity
+- `[:decimal {:precision 10 :scale 2}]` holds what Postgres's
+  `numeric(10,2)` does: at most 2 digits after the point and 8 before it
+- `[:json shape]` is a value a database keeps as JSON, its shape the
+  child's, maps closed as anywhere (`[:json :any]` for any JSON)
+  ([why](decisions/2026-10-23-a-databases-json-and-a-decimals-digits-are-shapes.md))
 - an error says the same on both sides: `"should be an id"`,
   `"should be at most 10"`, `"should be a moment, like 2026-10-12T10:00:00Z"`
 - on the JVM a `java.sql.Timestamp` or `java.util.Date` goes out as its
