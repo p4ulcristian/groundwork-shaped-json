@@ -1,5 +1,7 @@
 # wire is for the app's edges, in five functions
 
+> **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
+
 > Changed in part by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md) (2026-10-22, v0.2.0): every function takes a wire, made from settings, first.
 
 > Changed in part by [Data that fits goes out without being read back](2026-10-22-data-that-fits-goes-out-without-being-read-back.md) (2026-10-22): only data that doesn't fit is read back.

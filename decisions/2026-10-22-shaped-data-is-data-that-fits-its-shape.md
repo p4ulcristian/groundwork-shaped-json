@@ -1,5 +1,7 @@
 # Shaped data is data that fits its shape
 
+> **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
+
 > **Changed in part** by [wire is for the app's edges, in five functions](2026-10-22-wire-is-for-the-apps-edges.md) (2026-10-22): `does-data-fit-shape?` is gone; the way out is `turn-shaped-data-into-json-data-or-errors`, read back and checked against the closed shape.
 
 > Changes in part house's decision "A name is a sentence that starts with a verb": wire's names say "shaped data" and "data", not "value".

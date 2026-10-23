@@ -1,5 +1,7 @@
 # Browser values are typed, and small
 
+> **Changed in part** by [The family and its composer are groundwork](https://github.com/p4ulcristian/groundwork/blob/Starting-from-the-bottom/decisions/2026-10-23-the-family-and-its-composer-are-groundwork.md) (2026-10-23): manor, the family, and house, the composer, are both named groundwork now.
+
 > Changed in part by [Every value that sets behaviour is a setting](2026-10-22-every-value-that-sets-behaviour-is-a-setting.md) (2026-10-22, v0.2.0): exact decimals are the setting :exact-decimals, not loading wire.big.
 
 > Changes [Dates and decimals keep their types in the browser](2026-10-12-dates-and-decimals-keep-their-types-in-the-browser.md) in part: how, and that decimals are an app's choice.
