@@ -8,7 +8,7 @@ for JavaScript travel as text and come back as their real types. Both sides
 read the same JSON and refuse the same.
 
 ```clojure
-io.github.p4ulcristian/wire {:git/tag "v0.2.0" :git/sha "…"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.2.0
+io.github.p4ulcristian/wire {:git/tag "v0.2.1" :git/sha "900a84d"}   ; the sha: git ls-remote https://github.com/p4ulcristian/wire v0.2.0
 ```
 
 Needs only malli and jsonista. One namespace for both languages:
