@@ -16,5 +16,5 @@
          :exec-args   {:dirs ["test-code"]}}
   ;; the browser tests, through shadow-cljs:  npm install && npx shadow-cljs compile test
   :cljs {:extra-paths ["test-code"]
-         :extra-deps  {thheller/shadow-cljs    {:mvn/version "3.5.7"}
+         :extra-deps  {thheller/shadow-cljs    {:mvn/version "3.5.10"}
                        org.clojure/test.check {:mvn/version "1.1.3"}}}}}
